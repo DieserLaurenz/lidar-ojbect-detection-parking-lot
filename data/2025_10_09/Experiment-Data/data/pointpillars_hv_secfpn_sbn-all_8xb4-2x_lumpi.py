@@ -1,0 +1,91 @@
+_base_ = [
+    # model includes dataset file!
+    '../_base_/models/pointpillars_hv_secfpn_lumpi.py',
+    '../_base_/schedules/cyclic-40e.py',
+    '../_base_/default_runtime.py',
+]
+
+log_level = 'INFO'
+log_processor = dict(
+    type='LogProcessor',
+    window_size=20,
+    by_epoch=True,
+)
+
+default_hooks = dict(
+    visualization=dict(
+        type='Det3DVisualizationHook',
+        draw=False,
+        draw_gt=True,
+        show=False,
+        wait_time=-1,
+        vis_task='lidar_det',
+        score_thr=0.01,
+    ),
+    logger=dict(
+        type='LoggerHook',
+        interval=20,
+        ignore_last=False,
+    ),
+    checkpoint=dict(
+        type='CheckpointHook',
+        interval=10,
+    ),
+)
+
+vis_backends = [
+    dict(
+        type='LocalVisBackend',
+        save_dir="/data/lumpi/output",
+    ),
+]
+visualizer = dict(
+    type='Det3DLocalVisualizer',
+    vis_backends=vis_backends,
+    name='visualizer',
+)
+
+
+custom_hooks = [
+    dict(type='StopOnNaNHook'),
+]
+
+
+max_epochs = 50
+
+train_cfg = dict(
+    max_epochs=max_epochs,
+    val_interval=2,
+    by_epoch=True,
+)
+val_cfg = dict(type='ValLoop')
+test_cfg = dict(type='TestLoop')
+
+# learning rate
+lr = 1e-3
+
+optim_wrapper = dict(
+    type='OptimWrapper',
+    optimizer=dict(
+        type='AdamW',
+        lr=lr,
+        weight_decay=0.01,
+    ),
+    clip_grad=dict(max_norm=25, norm_type=2),
+)
+
+param_scheduler = [
+    dict(
+        type='OneCycleLR',
+        eta_max=lr,
+        total_steps=max_epochs,
+        anneal_strategy='cos',
+    ),
+
+],
+
+auto_scale_lr = dict(enable=True, base_batch_size=8*_base_.batch_size)
+
+
+resume = False
+load_from = None

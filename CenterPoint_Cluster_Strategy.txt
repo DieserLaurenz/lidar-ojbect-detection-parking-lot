@@ -1,0 +1,53 @@
+Strategie-Empfehlungen: CenterPoint auf GPU-Cluster (Tiefgaragen-Szenario)
+========================================================================
+
+Modell: CenterPoint (Voxel-Backbone, Multi-Frame Input)
+Hardware: High-End GPU Cluster (NVIDIA A100/H100 o.ä.)
+
+Diese Parameter sind darauf optimiert, die Limitierungen der vorangegangenen Masterarbeit (PointPillars, CPU-limitierte Inferenz) zu überwinden und die hohe Auflösung der Ouster OS0/OS1 Sensoren (128 Layer) auszunutzen.
+
+1. VOXEL-GRÖSSE (VOXEL SIZE)
+----------------------------
+Empfehlung: [0.05m, 0.05m, 0.1m] (x, y, z)
+Begründung:
+- Hohe Präzision: In einer Tiefgarage sind Objekte (Personen, Fahrräder) oft nah beieinander. Kleine Voxel (5cm) verhindern, dass eine Person mit einer nahen Säule "verschmilzt".
+- Cluster-Power: VoxelNet-basierte Modelle skalieren quadratisch mit der Voxel-Größe. Während lokale PCs hier scheitern, kann das Cluster den VRAM-Bedarf für diese feine Auflösung problemlos decken.
+
+2. PUNKTWOLKEN-REICHWEITE (POINT CLOUD RANGE)
+---------------------------------------------
+Empfehlung: [-25m, -25m, -2m, 25m, 25m, 2m] (xmin, ymin, zmin, xmax, ymax, zmax)
+Begründung:
+- Räumliche Eingrenzung: Eine Tiefgarage ist ein geschlossener Raum. 50m Gesamtdurchmesser (25m Radius) reichen völlig aus. Alles darüber hinaus sind nur Reflexionen an Wänden.
+- Z-Achse (Höhe): Da die Decke laut Masterarbeit bei ca. 2.50m liegt, begrenzen wir den Bereich nach oben hart bei 2m, um Lampen und Rohre (Störquellen) mechanisch auszublenden, ohne wichtige Objektfeatures zu verlieren.
+
+3. MULTI-FRAME INPUT (TEMPORAL AGGREGATION)
+-------------------------------------------
+Empfehlung: num_views = 10 (oder 0.5s bis 1.0s Historie)
+Begründung:
+- Bewegungs-Features: Stationäre Sensoren haben den Vorteil, dass sich nur die Zielobjekte bewegen. Durch das Stapeln von 10 Frames sieht die KI "Punkte-Schleppen". Das macht die Unterscheidung zwischen einer statischen Betonsäule und einer langsam gehenden Person trivial.
+- Rauschunterdrückung: Einzelne Sensor-Ausreißer werden durch die zeitliche Mittelung geglättet.
+
+4. BACKBONE ARCHITEKTUR
+-----------------------
+Empfehlung: Spconv (Sparse Convolution) V2
+Begründung:
+- Effizienz: Trotz Cluster-Power ist Effizienz wichtig. Sparse Convolutions berechnen nur dort Werte, wo auch Punkte sind. In der Garage (viel leerer Raum zwischen den Säulen) spart das massiv Rechenzeit, die in die Modell-Tiefe gesteckt werden kann.
+
+5. DATA AUGMENTATION (ERWEITERUNG DER TRAININGSDATEN)
+-----------------------------------------------------
+Empfehlung: Global Rotation, Global Scaling, Translation, und "GT-Sampling"
+Begründung:
+- Kampf dem Overfitting: Da die Sensoren immer an derselben Stelle stehen, neigt die KI dazu, den Hintergrund auswendig zu lernen. Durch extremes Augmentieren (Verschieben/Drehen der gesamten Szene) zwingen wir das Netz, die GEOMETRIE der Autos zu lernen, statt ihrer POSITION im Raum.
+- GT-Sampling: Das Modell kopiert während des Trainings Boxen anderer Szenen (z.B. nuScenes LKWs) in eure Garagen-Szenen, um die Vielfalt künstlich zu erhöhen.
+
+6. TRAININGSPARAMETER
+---------------------
+Empfehlung: Batch Size >= 32 (verteilt auf GPUs), SyncBN (Synchronized Batch Normalization)
+Begründung:
+- Stabiles Lernen: Hohe Batch Sizes auf dem Cluster führen zu stabileren Gradienten. SyncBN stellt sicher, dass die Statistiken über alle GPUs hinweg konsistent bleiben, was bei Multi-Sensor-Fusion kritisch ist.
+
+7. LOSS FUNCTIONS
+-----------------
+Empfehlung: Gaussian Focal Loss (für Heatmaps) & L1 Loss (für Box-Regression)
+Begründung:
+- Center-Detection: CenterPoint findet Objekte über lokale Maxima in einer Heatmap. In einer Tiefgarage mit vielen Überlappungen (Occlusions durch Säulen) ist der Focal Loss ideal, um das "Klassen-Ungleichgewicht" (viele leere Voxel, wenige Objekt-Voxel) zu handhaben.

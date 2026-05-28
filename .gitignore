@@ -1,0 +1,43 @@
+# Local/editor/cache files
+**/.claude/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Large raw/generated experiment data
+*.pcd
+*.db3
+*.bin
+*.pkl
+*.pth
+*.tar
+*.tar.xz
+*.zip
+
+# Generated reports/results
+merge_times.csv
+*_inference_times_rank0.csv
+mmdetection3d/checkpoints/
+mmdetection3d/data/
+mmdetection3d/results/
+mmdetection3d/work_dirs/
+
+# Keep experiment metadata and labels, especially manual labels.
+!data/
+!data/2025_10_09/
+!data/2025_10_09/Experiment-Data/
+!data/2025_10_09/Experiment-Data/README.md
+!data/2025_10_09/Experiment-Data/manifest-sha256.txt
+!data/2025_10_09/Experiment-Data/ro-crate-metadata.json
+!data/2025_10_09/Experiment-Data/experiments/
+!data/2025_10_09/Experiment-Data/experiments/*.py
+!data/2025_10_09/Experiment-Data/experiments/*.sh
+!data/2025_10_09/Experiment-Data/experiments/*/
+!data/2025_10_09/Experiment-Data/experiments/*/*labels*/
+!data/2025_10_09/Experiment-Data/experiments/*/*labels*/**
+
+# Keep local assistant/editor state out even under unignored data folders.
+**/.claude/

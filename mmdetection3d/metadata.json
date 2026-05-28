@@ -1,0 +1,80 @@
+{
+    "@context": {
+        "@language": "en",
+        "@vocab": "https://schema.org/",
+        "citeAs": "cr:citeAs",
+        "column": "cr:column",
+        "conformsTo": "dct:conformsTo",
+        "cr": "http://mlcommons.org/croissant/",
+        "rai": "http://mlcommons.org/croissant/RAI/",
+        "data": {
+            "@id": "cr:data",
+            "@type": "@json"
+        },
+        "dataType": {
+            "@id": "cr:dataType",
+            "@type": "@vocab"
+        },
+        "dct": "http://purl.org/dc/terms/",
+        "examples": {
+            "@id": "cr:examples",
+            "@type": "@json"
+        },
+        "extract": "cr:extract",
+        "field": "cr:field",
+        "fileProperty": "cr:fileProperty",
+        "fileObject": "cr:fileObject",
+        "fileSet": "cr:fileSet",
+        "format": "cr:format",
+        "includes": "cr:includes",
+        "isLiveDataset": "cr:isLiveDataset",
+        "jsonPath": "cr:jsonPath",
+        "key": "cr:key",
+        "md5": "cr:md5",
+        "parentField": "cr:parentField",
+        "path": "cr:path",
+        "recordSet": "cr:recordSet",
+        "references": "cr:references",
+        "regex": "cr:regex",
+        "repeated": "cr:repeated",
+        "replace": "cr:replace",
+        "sc": "https://schema.org/",
+        "separator": "cr:separator",
+        "source": "cr:source",
+        "subField": "cr:subField",
+        "transform": "cr:transform",
+        "wd": "https://www.wikidata.org/wiki/",
+        "samplingRate": "10Hz"
+    },
+    "@type": "sc:Dataset",
+    "@language": "en",
+    "name": "Master Thesis: Railway Object Detection with Multi-Perspective Stationary LiDAR Sensors",
+    "version": "1.0",
+    "description": "Implementation stored in TU Berlin Git repository and in experiment result stored in TUB Cloud instance.",
+    "citeAs": "@mastersthesis{Pagel2025, author = {Thea Pagel},  title = {Railway Object Detection with Multi-Perspective Stationary LiDAR Sensors},  school = {TU Berlin},  year = {2025},  address = {Berlin, Germany},  note = {Master Thesis}",
+    "datePublished": "2025-12-12",
+    "license": "© 2025 Fraunhofer FOKUS. All rights reserved. No part of this dataset may be used, published, or distributed without prior written permission from Fraunhofer FOKUS.",
+    "conformsTo": "http://mlcommons.org/croissant/1.0",
+    "distribution": [
+        {
+            "@type": "cr:FileObject",
+            "name": "raw_1_experiment_car_1.tar.xz",
+            "description": "Compressed ROS2 bags stored of experiment 1 car 1.",
+            "contentUrl": "https://tubcloud.tu-berlin.de/s/F8D2GqrebdyN7Zb/download?path=%2F&files=raw_1_experiment_car_1.tar.xz",
+            "encodingFormat": "application/x-xz",
+            "sha256": "dac35de1874b0b1f22e8568129b474fd98c11f4ab1b1652d27b8994bfdc7d15c"
+        },
+        {
+            "@type": "cr:FileObject",
+            "name": "raw_2_experiment_car_2.tar.xz",
+            "description": "Compressed ROS2 bags stored of experiment 2 car 2.",
+            "contentUrl": "https://tubcloud.tu-berlin.de/s/F8D2GqrebdyN7Zb/download?path=%2F&files=raw_2_experiment_car_2.tar.xz",
+            "encodingFormat": "application/x-xz",
+            "sha256": "bee3accd871d64a52f71ff72aa39780785e4860a030309e342bf63855cd894d3"
+        }
+    ],
+    "recordSet": [],
+    "access": {
+        "description": "In order to gain access, it is necessary to possess a university account at the TU Berlin."
+    }
+}

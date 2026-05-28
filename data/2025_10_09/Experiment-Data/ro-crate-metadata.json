@@ -1,0 +1,219 @@
+{
+    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@graph": [
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            },
+            "about": {
+                "@id": "./"
+            }
+        },
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "Railway Object Detection with Multi-Perspective Stationary LiDAR Sensors",
+            "description": "Experiment Data of 'Railway Object Detection with Multi-Perspective Stationary LiDAR Sensors' Master Thesis at Fraunhofer FOKUS",
+            "license": "All rights reserved by Fraunhofer FOKUS. Not for public distribution.",
+            "author": {
+                "@id": "https://orcid.org/0009-0009-5764-9285"
+            },
+            "datePublished": "2025-12-12",
+            "hasPart": [
+                {
+                    "@id": "experiments/"
+                },
+                {
+                    "@id": "data/"
+                },
+                {
+                    "@id": "README.md"
+                },
+                {
+                    "@id": "manifest-sha256.txt"
+                }
+            ]
+        },
+        {
+            "@id": "https://orcid.org/0009-0009-5764-9285",
+            "@type": "Person",
+            "name": "Thea Pagel",
+            "affiliation": "Techische Universität Berlin",
+            "email": "t.pagel@tu-berlin.de"
+        },
+        {
+            "@id": "experiments/",
+            "@type": "Folder",
+            "name": "Experiments",
+            "hasPart": [
+                {
+                    "@id": "experiments/raw_1_experiment_car_1.tar.xz"
+                },
+                {
+                    "@id": "experiments/raw_2_experiment_car_2.tar.xz"
+                },
+                {
+                    "@id": "experiments/raw_3_experiment_car_3.tar.xz"
+                },
+                {
+                    "@id": "experiments/raw_4_experiment_bike_1.tar.xz"
+                },
+                {
+                    "@id": "experiments/raw_5_experiment_bike_3.tar.xz"
+                },
+                {
+                    "@id": "experiments/raw_6_experiment_bike_4.tar.xz"
+                },
+                {
+                    "@id": "experiments/raw_7_experiment_person_1.tar.xz"
+                },
+                {
+                    "@id": "experiments/raw_8_experiment_person_2.tar.xz"
+                },
+                {
+                    "@id": "experiments/raw_9_experiment_person_3.tar.xz"
+                }
+            ]
+        },
+        {
+            "@id": "experiments/raw_1_experiment_car_1.tar.xz",
+            "@type": "File",
+            "name": "Experiment 1 - Car 1",
+            "description": "Vehicle experiment trial 1"
+        },
+        {
+            "@id": "experiments/raw_2_experiment_car_2.tar.xz",
+            "@type": "File",
+            "name": "Experiment 2 - Car 2",
+            "description": "Vehicle experiment trial 2"
+        },
+        {
+            "@id": "experiments/raw_3_experiment_car_3.tar.xz",
+            "@type": "File",
+            "name": "Experiment 3 - Car 3",
+            "description": "Vehicle experiment trial 3"
+        },
+        {
+            "@id": "experiments/raw_4_experiment_bike_1.tar.xz",
+            "@type": "File",
+            "name": "Experiment 4 - Bike 1",
+            "description": "Bicycle experiment trial 1"
+        },
+        {
+            "@id": "experiments/raw_5_experiment_bike_3.tar.xz",
+            "@type": "File",
+            "name": "Experiment 5 - Bike 3",
+            "description": "Bicycle experiment trial 3 (repeated due to previous error in Bike 2)"
+        },
+        {
+            "@id": "experiments/raw_6_experiment_bike_4.tar.xz",
+            "@type": "File",
+            "name": "Experiment 6 - Bike 4",
+            "description": "Bicycle experiment trial 4"
+        },
+        {
+            "@id": "experiments/raw_7_experiment_person_1.tar.xz",
+            "@type": "File",
+            "name": "Experiment 7 - Person 1",
+            "description": "Pedestrian experiment trial 1"
+        },
+        {
+            "@id": "experiments/raw_8_experiment_person_2.tar.xz",
+            "@type": "File",
+            "name": "Experiment 8 - Person 2",
+            "description": "Pedestrian experiment trial 2"
+        },
+        {
+            "@id": "experiments/raw_9_experiment_person_3.tar.xz",
+            "@type": "File",
+            "name": "Experiment 9 - Person 3",
+            "description": "Pedestrian experiment trial 3"
+        },
+        {
+            "@id": "data/",
+            "@type": "Folder",
+            "name": "Model and Background Data",
+            "hasPart": [
+                {
+                    "@id": "data/bg-frames.tar.xz"
+                },
+                {
+                    "@id": "data/pointpillars_hv_secfpn_8xb6-160e_kitti-3d-3class.py"
+                },
+                {
+                    "@id": "data/pointpillars_hv_secfpn_8xb6-160e_kitti-3d-3class_epoch_80.pth"
+                },
+                {
+                    "@id": "data/pointpillars_hv_secfpn_sbn-all_8xb4-2x_lumpi.py"
+                },
+                {
+                    "@id": "data/pointpillars_hv_secfpn_sbn-all_8xb4-2x_lumpi_epoch_50.pth"
+                },
+                {
+                    "@id": "data/pointpillars_hv_secfpn_sbn-all_8xb4-2x_osdar23.py"
+                },
+                {
+                    "@id": "data/pointpillars_hv_secfpn_sbn-all_8xb4-2x_osdar23_epoch_60.pth"
+                }
+            ]
+        },
+        {
+            "@id": "data/bg-frames.tar.xz",
+            "@type": "File",
+            "name": "Background Frames",
+            "description": "Contains background frame for removal for each sensor and merged point cloud"
+        },
+        {
+            "@id": "data/pointpillars_hv_secfpn_8xb6-160e_kitti-3d-3class.py",
+            "@type": "SoftwareSourceCode",
+            "name": "MMDetection3D KITTI Config",
+            "description": "Configuration for KITTI training"
+        },
+        {
+            "@id": "data/pointpillars_hv_secfpn_8xb6-160e_kitti-3d-3class_epoch_80.pth",
+            "@type": "File",
+            "name": "KITTI Model Weights",
+            "description": "Model weights for KITTI training after 80 epochs"
+        },
+        {
+            "@id": "data/pointpillars_hv_secfpn_sbn-all_8xb4-2x_lumpi.py",
+            "@type": "SoftwareSourceCode",
+            "name": "MMDetection3D LUMPI Config",
+            "description": "Configuration for LUMPI training"
+        },
+        {
+            "@id": "data/pointpillars_hv_secfpn_sbn-all_8xb4-2x_lumpi_epoch_50.pth",
+            "@type": "File",
+            "name": "LUMPI Model Weights",
+            "description": "Model weights for LUMPI training after 50 epochs"
+        },
+        {
+            "@id": "data/pointpillars_hv_secfpn_sbn-all_8xb4-2x_osdar23.py",
+            "@type": "SoftwareSourceCode",
+            "name": "MMDetection3D OSDaR23 Config",
+            "description": "Configuration for OSDaR23 training"
+        },
+        {
+            "@id": "data/pointpillars_hv_secfpn_sbn-all_8xb4-2x_osdar23_epoch_60.pth",
+            "@type": "File",
+            "name": "OSDaR23 Model Weights",
+            "description": "Model weights for OSDaR23 training after 60 epochs"
+        },
+        {
+            "@id": "README.md",
+            "@type": "File",
+            "name": "README",
+            "description": "README of this Submission",
+            "encodingFormat": "text/markdown"
+        },
+        {
+            "@id": "manifest-sha256.txt",
+            "@type": "File",
+            "name": "Manifest SHA256",
+            "description": "Checksum SHA256 for every file",
+            "encodingFormat": "text/ascii"
+        }
+    ]
+}

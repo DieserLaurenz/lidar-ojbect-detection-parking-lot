@@ -1,0 +1,42 @@
+Multisensor LiDAR 3D Object Detection: Training and Evaluation
+Zurück zu Liste der project topics
+5 Anmeldungen für dieses Thema.
+Deine Bewerbung ist im System.
+Als Team anmelden
+Gruppe
+EhUcQZXA
+Schicke diesen Gruppenkode zum Rest Deines Teams oder gib einen anderen Gruppenkode ein.
+Projektbeschreibung
+In this project a 3D object detection model shall be trained and evaluated using the experiment data from a multi-perspective LIDAR recording dataset in an underground parking. The goal is to assess how a pre-trained detection model can be fine-tuned on the two-sensor experiment data and to quantify the benefits of multi-sensor fusion on the evaluation data. The target classes are car, bicycle, and person.
+
+Project approach:
+
+Data source: A two-sensor LiDAR experiment dataset featuring identical scenes captured from two distinct viewpoints, plus a merged multi-view configuration.
+
+Model: Use an existing, pre-trained 3D object detection model (e.g., PointPillars/SECOND or CenterPoint variants) with open pre-trained weights.
+
+Training strategy: Fine-tune the pre-trained model exclusively on the provided experiment data. Do not train from scratch and do not incorporate other datasets for training.
+
+Preprocessing:
+
+Converting point clouds to the model’s preferred representation (e.g., voxelization for PointPillars).
+Handling two-sensor data and the merged data as separate inputs to evaluate single-sensor vs. merged performance.
+Optional noise reduction or ceiling removal if consistent with the data pipeline.
+Evaluation:
+
+Metrics: Mean Average Precision (mAP) across IoU thresholds (e.g., AP30/40/50/60 and overall mAP), per-class AP, and comparisons between single-sensor and merged configurations.
+Inference speed: report approximate per-frame inference time and data-merge time for the evaluation setup.
+Qualitative analysis: inspect detections to illustrate typical successes and failure modes.
+March 9th, 2026 ∎
+Gruppengröße
+2–3
+Umfang der Aufgabe
+normal
+Leistungspunkte
+6 CP or 9 CP
+Voraussetzungen
+Experience with Python, or a similar object-oriented programming language
+
+Possibly experience with Pytorch or TensorFlow
+
+Project language: German or English

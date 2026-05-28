@@ -1,0 +1,27 @@
+ Was zu tun ist (Reihenfolge):
+
+  1. ROS2-Bags zu Punktwolken konvertieren (braucht ROS2 Kilted)
+  bash all_rosbag2_to_pcd_export.sh --base .
+
+  2. Punktwolken transformieren + mergen
+  bash all_merge_pcds.sh --base .
+  → erzeugt merged_pcd/, os0_pcd_transform/, os1_pcd_transform/ in jedem Experiment-Ordner.
+
+  3. Background-Frames entpacken
+  tar -xvf bg-frames.tar.xz
+
+  4. Auto-Labeling laufen lassen ← hier entstehen eure GT-Labels
+  bash all_auto_label.sh .
+  → erzeugt merged_labels/, os0_labels/, os1_labels/ mit den Bounding Boxes.
+
+  5. Daten für MMDetection3D vorbereiten
+  python tools/create_data.py exp --root-path data/exp/raw --out-dir data/exp --workers 4 --target-dataset kitti
+
+  Wichtige Einschränkung
+
+  Diese Labels sind automatisch erzeugt (Background-Removal + DBSCAN + Größen-Templates). Pagel selbst hat in Kap. 6.4 zugegeben, dass die
+  "inaccuracies may render the resulting labels unsuitable for training". Für reines Testen (wie sie es gemacht hat) reicht es. Für Fine-Tuning (was
+  ihr machen sollt) ist das ein Risiko — die Labels haben Rotationsfehler und Z-Achsen-Shifts, das Modell lernt diese Fehler mit.
+
+  Empfehlung: Erstmal mit den Auto-Labels arbeiten und schauen, was rauskommt. Wenn die Ergebnisse schlecht sind, müsst ihr ggf. einen Teil manuell
+  nachkorrigieren (z. B. mit Blender wie Pagel für die Hintergrund-Autos).
