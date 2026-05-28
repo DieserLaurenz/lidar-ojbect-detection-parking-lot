@@ -12,14 +12,15 @@ from mmdet3d.datasets import lumpi
 
 
 IGNORE_FRAME_KEY = "ignore_frame"
+INVALID_FRAME_KEY = "invalid_frame"
 
 
-def is_ignore_frame_annotation(data: object) -> bool:
+def is_invalid_frame_annotation(data: object) -> bool:
     if isinstance(data, dict):
-        return bool(data.get(IGNORE_FRAME_KEY, False))
+        return bool(data.get(INVALID_FRAME_KEY, False) or data.get(IGNORE_FRAME_KEY, False))
     if isinstance(data, list):
         return any(
-            bool(item.get(IGNORE_FRAME_KEY, False))
+            bool(item.get(INVALID_FRAME_KEY, False) or item.get(IGNORE_FRAME_KEY, False))
             for item in data
             if isinstance(item, dict)
         )
@@ -275,11 +276,11 @@ class ExpLabelConverter():
             file_name = f"{measurement_number}{type_number}0000{frame_id:06d}"
             out = osp.join(self.output_dir, "labels", f"{file_name}.json")
         data = self.load_label_file(file)
-        if is_ignore_frame_annotation(data):
+        if is_invalid_frame_annotation(data):
             if type_number is not None and osp.exists(out):
-                print(f"Removing converted label for ignored frame: {out}")
+                print(f"Removing converted label for invalid frame: {out}")
                 os.remove(out)
-            print(f"Skipping ignored frame label: {file}")
+            print(f"Skipping invalid frame label: {file}")
             return
         if type_number is not None and osp.exists(out):
             return

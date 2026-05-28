@@ -108,7 +108,8 @@ P           copy previous frame label into current frame
 C           create a new visible box and switch to free 3D edit camera
 T           reset dimensions and center height to frame-272 template
 V           show / hide current box without deleting file
-Z           delete current frame label JSON and hide box
+0/Y         mark current frame as invalid for dataset creation
+Z           mark current frame as invalid; no files are deleted
 X           save current bbox JSON
 N/B         save current frame, then next / previous frame
 R           reset camera

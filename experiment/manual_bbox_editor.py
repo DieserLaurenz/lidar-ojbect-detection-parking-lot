@@ -20,6 +20,7 @@ CLASS_COLORS = {
 }
 
 IGNORE_FRAME_KEY = "ignore_frame"
+INVALID_FRAME_KEY = "invalid_frame"
 
 
 def sorted_pcds(path: Path) -> list[Path]:
@@ -147,15 +148,19 @@ def load_label(
     return bbox_from_points(pts, class_name, template_dims=template_dims), False
 
 
-def is_ignore_frame_label(path: Path) -> bool:
+def is_invalid_frame_label(path: Path) -> bool:
     if not path.exists():
         return False
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
     if isinstance(data, dict):
-        return bool(data.get(IGNORE_FRAME_KEY, False))
+        return bool(data.get(INVALID_FRAME_KEY, False) or data.get(IGNORE_FRAME_KEY, False))
     if isinstance(data, list):
-        return any(bool(item.get(IGNORE_FRAME_KEY, False)) for item in data if isinstance(item, dict))
+        return any(
+            bool(item.get(INVALID_FRAME_KEY, False) or item.get(IGNORE_FRAME_KEY, False))
+            for item in data
+            if isinstance(item, dict)
+        )
     return False
 
 
@@ -238,11 +243,11 @@ def save_label(
     print(f"Saved {path}")
 
 
-def save_ignore_frame(path: Path) -> None:
+def save_invalid_frame(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
-        json.dump({IGNORE_FRAME_KEY: True}, f, indent=2)
-    print(f"Saved ignore marker {path}")
+        json.dump({INVALID_FRAME_KEY: True}, f, indent=2)
+    print(f"Saved invalid-frame marker {path}")
 
 
 def format_bbox(bbox: list[float]) -> str:
@@ -334,7 +339,7 @@ def run(args) -> None:
         state["pcd"] = pcd
         if load_existing:
             has_label = label_path.exists()
-            state["ignored"] = is_ignore_frame_label(label_path)
+            state["ignored"] = is_invalid_frame_label(label_path)
             if state["ignored"]:
                 state["box_visible"] = False
                 state["manual_dims"] = False
@@ -373,7 +378,7 @@ def run(args) -> None:
 
         pts_in_box = count_points_in_bbox(pcd, state["bbox"])
         if state["ignored"]:
-            visible_text = "ignored"
+            visible_text = "invalid"
         else:
             visible_text = "visible" if state["box_visible"] else "hidden/no-label"
         print(
@@ -417,7 +422,7 @@ def run(args) -> None:
     def save_current(_vis=None):
         frame_path, label_path = current_paths()
         if state["ignored"]:
-            save_ignore_frame(label_path)
+            save_invalid_frame(label_path)
             return False
         if not state["box_visible"]:
             print("Box hidden; skip autosave for current frame")
@@ -432,11 +437,11 @@ def run(args) -> None:
         save_label(label_path, class_name, state["bbox"], pts, manual_dims)
         return False
 
-    def ignore_current(_vis=None):
+    def mark_invalid_current(_vis=None):
         _frame_path, label_path = current_paths()
         state["ignored"] = True
         state["box_visible"] = False
-        save_ignore_frame(label_path)
+        save_invalid_frame(label_path)
         render(load_existing=False)
         return False
 
@@ -446,16 +451,8 @@ def run(args) -> None:
         save_current()
 
     def delete_current(_vis=None):
-        _frame_path, label_path = current_paths()
-        if label_path.exists():
-            label_path.unlink()
-            print(f"Deleted {label_path}")
-        else:
-            print(f"No label file to delete: {label_path}")
-        state["ignored"] = False
-        state["box_visible"] = False
-        render(load_existing=False)
-        return False
+        print("Delete is disabled; marking frame invalid instead.")
+        return mark_invalid_current(_vis)
 
     def next_frame(_vis=None):
         maybe_autosave()
@@ -573,7 +570,7 @@ def run(args) -> None:
         "P": copy_previous,
         "T": reset_template,
         "V": lambda v: (state.update({"ignored": False, "box_visible": not state["box_visible"]}), render(load_existing=False), False)[-1],
-        "Y": ignore_current,
+        "0": mark_invalid_current,
         "Z": delete_current,
         "R": lambda v: (reset_camera(), vis.update_renderer(), False)[-1],
         "F": lambda v: (set_free_edit_camera(), vis.update_renderer(), False)[-1],
@@ -584,6 +581,9 @@ def run(args) -> None:
 
     for key, callback in keymap.items():
         vis.register_key_callback(ord(key), callback)
+    for key_code in (48, 96):
+        vis.register_key_callback(key_code, mark_invalid_current)
+    vis.register_key_callback(ord("Y"), mark_invalid_current)
 
     print(HELP_TEXT)
     render(load_existing=True)
@@ -607,8 +607,8 @@ P           copy previous frame label; template dims/z stay locked
 C           create a new visible box and switch to free 3D edit camera
 T           reset dimensions and template z to class/frame template
 V           show / hide current box without deleting file
-Y           mark current frame as ignored for dataset creation
-Z           delete current frame label JSON and hide box
+0/Y         mark current frame as invalid for dataset creation
+Z           mark current frame as invalid; no files are deleted
 X           save current bbox JSON
 N/B         next / previous frame
 R           reset camera
