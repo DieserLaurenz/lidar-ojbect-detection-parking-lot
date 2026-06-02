@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 from pathlib import Path
 
 from pcd_annotate import STATIC_LABELS
@@ -27,9 +28,10 @@ SENSOR_PCD_DIRS = {
 
 
 def static_label_applies_to_sensor(static_label: dict, sensor: str) -> bool:
-    if sensor == "merged":
-        return True
-    return sensor in static_label.get("sensors", [])
+    # The original sensor list is too strict for transformed views: some boxes
+    # marked os1-only still contain enough os0 points. Use the per-frame point
+    # threshold below as the actual visibility test.
+    return True
 
 
 def bbox_already_present(labels: list[dict], bbox: list[float], eps: float = 1e-6) -> bool:
@@ -40,6 +42,14 @@ def bbox_already_present(labels: list[dict], bbox: list[float], eps: float = 1e-
         if all(abs(float(a) - float(b)) <= eps for a, b in zip(existing, bbox)):
             return True
     return False
+
+
+def normalize_car_bbox_axes(bbox: list[float]) -> list[float]:
+    normalized = [float(value) for value in bbox]
+    if len(normalized) >= 7 and normalized[3] < normalized[4]:
+        normalized[3], normalized[4] = normalized[4], normalized[3]
+        normalized[6] = ((normalized[6] + math.pi / 2.0 + math.pi) % (2.0 * math.pi)) - math.pi
+    return normalized
 
 
 def add_static_labels_for_sensor(
@@ -97,7 +107,7 @@ def add_static_labels_for_sensor(
             if not static_label_applies_to_sensor(static_label, sensor):
                 continue
 
-            bbox = [float(value) for value in static_label["bbox"]]
+            bbox = normalize_car_bbox_axes(static_label["bbox"])
             if bbox_already_present(merged_labels, bbox):
                 continue
 

@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 
@@ -18,6 +19,8 @@ CLASS_COLORS = {
     "bike": (1.0, 0.65, 0.0),
     "person": (0.1, 0.35, 1.0),
 }
+STATIC_BOX_COLOR = (0.1, 1.0, 0.25)
+SELECTED_BOX_COLOR = (1.0, 1.0, 0.0)
 
 IGNORE_FRAME_KEY = "ignore_frame"
 INVALID_FRAME_KEY = "invalid_frame"
@@ -73,6 +76,21 @@ def bbox_to_obb(bbox: list[float], color=(1.0, 0.2, 0.1)) -> o3d.geometry.Orient
     obb = o3d.geometry.OrientedBoundingBox([x, y, z], rot, [dx, dy, dz])
     obb.color = color
     return obb
+
+
+def normalize_static_car_bbox_axes(bbox: list[float]) -> list[float]:
+    normalized = [float(x) for x in bbox]
+    if len(normalized) >= 7 and normalized[3] < normalized[4]:
+        normalized[3], normalized[4] = normalized[4], normalized[3]
+        normalized[6] = ((normalized[6] + math.pi / 2.0 + math.pi) % (2.0 * math.pi)) - math.pi
+    return normalized
+
+
+def normalize_label_bbox_axes(label: dict) -> dict:
+    item = dict(label)
+    if item.get("static") is True and item.get("label") == "car" and "bbox" in item:
+        item["bbox"] = normalize_static_car_bbox_axes(item["bbox"])
+    return item
 
 
 def bbox_from_points(
@@ -136,7 +154,7 @@ def load_label(
                     bbox[3:6] = template_dims
                     manual_dims = False
                 return bbox, manual_dims
-        if labels and "bbox" in labels[0]:
+        if labels and "bbox" in labels[0] and "label" not in labels[0]:
             bbox = [float(x) for x in labels[0]["bbox"]]
             manual_dims = bool(labels[0].get("manual_dims", False))
             if (force_template_dims and template_dims is not None and
@@ -148,11 +166,29 @@ def load_label(
     return bbox_from_points(pts, class_name, template_dims=template_dims), False
 
 
-def is_invalid_frame_label(path: Path) -> bool:
+def load_display_labels(path: Path, class_name: str | None = None) -> list[dict]:
     if not path.exists():
-        return False
+        return []
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
+    if is_invalid_frame_data(data):
+        return []
+    labels = data if isinstance(data, list) else data.get("instances", [])
+    display_labels = []
+    for item in labels:
+        if not isinstance(item, dict) or "bbox" not in item:
+            continue
+        if (
+            class_name is not None
+            and item.get("label") != class_name
+            and not item.get("static", False)
+        ):
+            continue
+        display_labels.append(item)
+    return display_labels
+
+
+def is_invalid_frame_data(data: object) -> bool:
     if isinstance(data, dict):
         return bool(data.get(INVALID_FRAME_KEY, False) or data.get(IGNORE_FRAME_KEY, False))
     if isinstance(data, list):
@@ -162,6 +198,14 @@ def is_invalid_frame_label(path: Path) -> bool:
             if isinstance(item, dict)
         )
     return False
+
+
+def is_invalid_frame_label(path: Path) -> bool:
+    if not path.exists():
+        return False
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    return is_invalid_frame_data(data)
 
 
 def read_label_bbox(path: Path, class_name: str) -> list[float]:
@@ -243,11 +287,69 @@ def save_label(
     print(f"Saved {path}")
 
 
-def save_invalid_frame(path: Path) -> None:
+def save_labels(path: Path, labels: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    serializable = []
+    for label in labels:
+        item = normalize_label_bbox_axes(label)
+        if "bbox" in item:
+            item["bbox"] = [float(x) for x in item["bbox"]]
+        if "num_lidar_pts" in item:
+            item["num_lidar_pts"] = int(item["num_lidar_pts"])
+        serializable.append(item)
     with path.open("w", encoding="utf-8") as f:
-        json.dump({INVALID_FRAME_KEY: True}, f, indent=2)
+        json.dump(serializable, f, indent=2)
+    print(f"Saved {path}")
+
+
+def invalid_frame_marker() -> dict:
+    return {INVALID_FRAME_KEY: True}
+
+
+def save_invalid_frame(path: Path, labels: list[dict] | None = None) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if labels:
+        data = [dict(label) for label in labels]
+        data.append(invalid_frame_marker())
+    else:
+        data = invalid_frame_marker()
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
     print(f"Saved invalid-frame marker {path}")
+
+
+def read_label_data(path: Path) -> object:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def remove_invalid_frame_marker(path: Path) -> list[dict]:
+    data = read_label_data(path)
+    if not isinstance(data, list):
+        return []
+    labels = [
+        item for item in data
+        if isinstance(item, dict)
+        and not item.get(INVALID_FRAME_KEY, False)
+        and not item.get(IGNORE_FRAME_KEY, False)
+    ]
+    save_labels(path, labels)
+    return labels
+
+
+def strip_static_and_invalid_labels(data: object) -> list[dict]:
+    if not isinstance(data, list):
+        return []
+    return [
+        dict(item) for item in data
+        if isinstance(item, dict)
+        and "bbox" in item
+        and not item.get("static", False)
+        and not item.get(INVALID_FRAME_KEY, False)
+        and not item.get(IGNORE_FRAME_KEY, False)
+    ]
 
 
 def format_bbox(bbox: list[float]) -> str:
@@ -288,13 +390,18 @@ def run(args) -> None:
         "box_visible": True,
         "ignored": False,
         "manual_dims": False,
+        "label_items": [],
+        "selected_label_idx": 0,
         "view_initialized": False,
         "step_scale": 1.0,
     }
 
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window(
-        window_name=f"Manual bbox editor | {args.experiment}",
+        window_name=(
+            f"{'Label viewer' if args.view_only else 'Manual bbox editor'} | "
+            f"{args.experiment}"
+        ),
         width=args.width,
         height=args.height,
     )
@@ -316,6 +423,29 @@ def run(args) -> None:
         ctr.set_lookat([state["bbox"][0], state["bbox"][1], state["bbox"][2]])
         ctr.set_up([0.0, 0.0, 1.0])
         ctr.set_zoom(0.45)
+
+    def selected_label() -> dict | None:
+        labels = state["label_items"]
+        if not labels:
+            return None
+        state["selected_label_idx"] = max(
+            0,
+            min(state["selected_label_idx"], len(labels) - 1),
+        )
+        return labels[state["selected_label_idx"]]
+
+    def sync_selected_label_from_bbox() -> None:
+        label = selected_label()
+        if label is not None:
+            label["bbox"] = [float(x) for x in state["bbox"]]
+
+    def sync_bbox_from_selected_label() -> None:
+        label = selected_label()
+        if label is None:
+            return
+        state["bbox"] = [float(x) for x in label["bbox"]]
+        state["manual_dims"] = bool(label.get("manual_dims", False))
+        state["box_visible"] = True
 
     def set_top_down_camera():
         ctr = vis.get_view_control()
@@ -340,7 +470,21 @@ def run(args) -> None:
         if load_existing:
             has_label = label_path.exists()
             state["ignored"] = is_invalid_frame_label(label_path)
-            if state["ignored"]:
+            if args.view_only:
+                display_labels = load_display_labels(label_path, class_name)
+                state["label_items"] = [dict(item) for item in display_labels]
+                state["box_visible"] = bool(display_labels)
+                state["manual_dims"] = False
+                if display_labels:
+                    state["bbox"] = [float(x) for x in display_labels[0]["bbox"]]
+                else:
+                    state["bbox"] = bbox_from_points(
+                        np.asarray(pcd.points),
+                        class_name,
+                        template_dims=template_dims,
+                    )
+            elif state["ignored"]:
+                state["label_items"] = []
                 state["box_visible"] = False
                 state["manual_dims"] = False
                 state["bbox"] = bbox_from_points(
@@ -349,26 +493,59 @@ def run(args) -> None:
                     template_dims=template_dims,
                 )
             else:
-                state["box_visible"] = has_label or default_box_for_empty
-                state["bbox"], state["manual_dims"] = load_label(
-                    label_path,
-                    class_name,
-                    pcd,
-                    template_dims=template_dims,
-                    force_template_dims=force_template_dims,
-                    preserve_manual_dims=False,
+                edit_labels = load_display_labels(label_path, class_name)
+                state["label_items"] = [dict(item) for item in edit_labels]
+                state["selected_label_idx"] = min(
+                    state["selected_label_idx"],
+                    max(0, len(state["label_items"]) - 1),
                 )
-                state["bbox"] = apply_template_geometry(
-                    state["bbox"],
-                    template_bbox,
-                    force_dims=False,
-                    force_z=force_template_z,
-                )
+                if state["label_items"]:
+                    sync_bbox_from_selected_label()
+                    if force_template_dims and template_dims is not None:
+                        state["bbox"][3:6] = template_dims
+                    state["bbox"] = apply_template_geometry(
+                        state["bbox"],
+                        template_bbox,
+                        force_dims=False,
+                        force_z=force_template_z,
+                    )
+                    sync_selected_label_from_bbox()
+                else:
+                    state["box_visible"] = has_label or default_box_for_empty
+                    state["bbox"], state["manual_dims"] = load_label(
+                        label_path,
+                        class_name,
+                        pcd,
+                        template_dims=template_dims,
+                        force_template_dims=force_template_dims,
+                        preserve_manual_dims=False,
+                    )
+                    state["bbox"] = apply_template_geometry(
+                        state["bbox"],
+                        template_bbox,
+                        force_dims=False,
+                        force_z=force_template_z,
+                    )
 
         vis.clear_geometries()
         vis.add_geometry(o3d.geometry.TriangleMesh.create_coordinate_frame(size=args.axis_size))
         vis.add_geometry(pcd)
-        if state["box_visible"]:
+        display_labels = []
+        if args.view_only and not state["ignored"]:
+            display_labels = load_display_labels(label_path, class_name)
+            for label in display_labels:
+                bbox = [float(x) for x in label["bbox"]]
+                label_color = STATIC_BOX_COLOR if label.get("static") else color
+                vis.add_geometry(bbox_to_obb(bbox, label_color))
+        elif state["label_items"] and not state["ignored"]:
+            for idx, label in enumerate(state["label_items"]):
+                bbox = [float(x) for x in label["bbox"]]
+                if idx == state["selected_label_idx"]:
+                    label_color = SELECTED_BOX_COLOR
+                else:
+                    label_color = STATIC_BOX_COLOR if label.get("static") else color
+                vis.add_geometry(bbox_to_obb(bbox, label_color))
+        elif state["box_visible"]:
             vis.add_geometry(bbox_to_obb(state["bbox"], color))
 
         opt = vis.get_render_option()
@@ -379,8 +556,22 @@ def run(args) -> None:
         pts_in_box = count_points_in_bbox(pcd, state["bbox"])
         if state["ignored"]:
             visible_text = "invalid"
+        elif args.view_only:
+            static_count = sum(1 for item in display_labels if item.get("static"))
+            visible_text = (
+                f"view-only labels={len(display_labels)} static={static_count}"
+            )
         else:
-            visible_text = "visible" if state["box_visible"] else "hidden/no-label"
+            if state["label_items"]:
+                selected = selected_label()
+                selected_kind = "static" if selected and selected.get("static") else "label"
+                visible_text = (
+                    f"visible labels={len(state['label_items'])} "
+                    f"selected={state['selected_label_idx'] + 1}/"
+                    f"{len(state['label_items'])} {selected_kind}"
+                )
+            else:
+                visible_text = "visible" if state["box_visible"] else "hidden/no-label"
         print(
             f"[{state['idx'] + 1}/{len(files)}] {frame_path.stem} "
             f"{visible_text} points_in_box={pts_in_box} {format_bbox(state['bbox'])}"
@@ -416,10 +607,14 @@ def run(args) -> None:
             state["bbox"][5] = max(0.05, state["bbox"][5] + dim_delta[2])
             state["manual_dims"] = True
         state["bbox"][6] += yaw_delta
+        sync_selected_label_from_bbox()
         render(load_existing=False)
         return False
 
-    def save_current(_vis=None):
+    def save_current(_vis=None, propagate_static: bool = False):
+        if args.view_only:
+            print("View-only mode: save disabled")
+            return False
         frame_path, label_path = current_paths()
         if state["ignored"]:
             save_invalid_frame(label_path)
@@ -428,6 +623,19 @@ def run(args) -> None:
             print("Box hidden; skip autosave for current frame")
             return False
         state["box_visible"] = True
+        if state["label_items"]:
+            sync_selected_label_from_bbox()
+            for label in state["label_items"]:
+                if "bbox" not in label:
+                    continue
+                label["num_lidar_pts"] = count_points_in_bbox(
+                    state["pcd"],
+                    [float(x) for x in label["bbox"]],
+                )
+            save_labels(label_path, state["label_items"])
+            if propagate_static:
+                propagate_static_labels_from_current()
+            return False
         pts = count_points_in_bbox(state["pcd"], state["bbox"])
         manual_dims = state["manual_dims"] or not np.allclose(
             np.asarray(state["bbox"][3:6], dtype=float),
@@ -437,22 +645,97 @@ def run(args) -> None:
         save_label(label_path, class_name, state["bbox"], pts, manual_dims)
         return False
 
-    def mark_invalid_current(_vis=None):
-        _frame_path, label_path = current_paths()
-        state["ignored"] = True
-        state["box_visible"] = False
-        save_invalid_frame(label_path)
+    def save_current_and_propagate(_vis=None):
+        return save_current(_vis, propagate_static=True)
+
+    def propagate_static_labels_from_current(allow_empty: bool = False):
+        static_templates = [
+            dict(label) for label in state["label_items"]
+            if isinstance(label, dict) and label.get("static") and "bbox" in label
+        ]
+        if not static_templates and not allow_empty:
+            return
+
+        updated = 0
+        skipped_invalid = 0
+        for frame_path in all_files:
+            label_path = label_dir / f"{frame_path.stem}.json"
+            data = read_label_data(label_path)
+            if is_invalid_frame_data(data):
+                skipped_invalid += 1
+                continue
+
+            base_labels = strip_static_and_invalid_labels(data)
+            pcd = read_pcd(frame_path, force_color=None)
+            propagated = []
+            for template in static_templates:
+                item = dict(template)
+                bbox = [float(x) for x in item["bbox"]]
+                num_points = count_points_in_bbox(pcd, bbox)
+                reference_points = float(item.get("num_lidar_pts", num_points))
+                required_points = min(reference_points * 0.5, 120.0)
+                if num_points < required_points:
+                    continue
+                item["bbox"] = bbox
+                item["num_lidar_pts"] = num_points
+                item["static"] = True
+                propagated.append(item)
+
+            save_labels(label_path, base_labels + propagated)
+            updated += 1
+
+        print(
+            f"Propagated {len(static_templates)} static boxes to "
+            f"{updated} frames; skipped_invalid={skipped_invalid}"
+        )
+
+    def unmark_invalid_current(label_path: Path):
+        labels = remove_invalid_frame_marker(label_path)
+        state["ignored"] = False
+        state["label_items"] = [dict(label) for label in labels]
+        state["selected_label_idx"] = 0
+        if state["label_items"]:
+            sync_bbox_from_selected_label()
+        else:
+            state["bbox"] = default_bbox_from_current_view(
+                state["pcd"],
+                class_name,
+                template_dims,
+            )
+            state["box_visible"] = True
+            state["manual_dims"] = False
+        print(f"Frame unmarked invalid: {label_path}")
         render(load_existing=False)
         return False
 
+    def toggle_invalid_current(_vis=None):
+        if args.view_only:
+            print("View-only mode: invalid marking disabled")
+            return False
+        _frame_path, label_path = current_paths()
+        if state["ignored"]:
+            return unmark_invalid_current(label_path)
+        state["ignored"] = True
+        state["box_visible"] = False
+        save_invalid_frame(label_path, state["label_items"])
+        render(load_existing=False)
+        return False
+
+    def mark_invalid_current(_vis=None):
+        return toggle_invalid_current(_vis)
+
     def maybe_autosave():
+        if args.view_only:
+            return
         if args.no_autosave_on_frame_change:
             return
         save_current()
 
     def delete_current(_vis=None):
-        print("Delete is disabled; marking frame invalid instead.")
-        return mark_invalid_current(_vis)
+        if args.view_only:
+            print("View-only mode: delete/invalid disabled")
+            return False
+        return delete_selected_static_box(_vis)
 
     def next_frame(_vis=None):
         maybe_autosave()
@@ -467,10 +750,14 @@ def run(args) -> None:
         return False
 
     def copy_previous(_vis=None):
+        if args.view_only:
+            print("View-only mode: copy disabled")
+            return False
         if state["idx"] == 0:
             print("No previous frame to copy")
             return False
         state["ignored"] = False
+        state["label_items"] = []
         prev_label = label_dir / f"{files[state['idx'] - 1].stem}.json"
         state["bbox"], state["manual_dims"] = load_label(
             prev_label,
@@ -495,16 +782,23 @@ def run(args) -> None:
         return False
 
     def reset_template(_vis=None):
+        if args.view_only:
+            print("View-only mode: template reset disabled")
+            return False
         state["ignored"] = False
         state["bbox"][3:6] = template_dims
         if force_template_z and template_bbox is not None:
             state["bbox"][2] = template_bbox[2]
         state["manual_dims"] = False
+        sync_selected_label_from_bbox()
         state["box_visible"] = True
         render(load_existing=False)
         return False
 
     def new_box(_vis=None):
+        if args.view_only:
+            print("View-only mode: new box disabled")
+            return False
         state["ignored"] = False
         state["bbox"] = default_bbox_from_current_view(
             state["pcd"],
@@ -515,10 +809,86 @@ def run(args) -> None:
             state["bbox"][2] = template_bbox[2]
         state["box_visible"] = True
         state["manual_dims"] = False
+        state["label_items"].append({
+            "label": class_name,
+            "bbox": [float(x) for x in state["bbox"]],
+            "num_lidar_pts": count_points_in_bbox(state["pcd"], state["bbox"]),
+            "manual_dims": False,
+        })
+        state["selected_label_idx"] = len(state["label_items"]) - 1
         render(load_existing=False)
         set_free_edit_camera()
         vis.update_renderer()
         print("Created new box. Free 3D edit camera enabled.")
+        return False
+
+    def new_static_car_box(_vis=None):
+        if args.view_only:
+            print("View-only mode: new static car box disabled")
+            return False
+        state["ignored"] = False
+        car_dims = TEMPLATES["car"]
+        state["bbox"] = default_bbox_from_current_view(
+            state["pcd"],
+            "car",
+            car_dims,
+        )
+        state["manual_dims"] = False
+        state["box_visible"] = True
+        state["label_items"].append({
+            "label": "car",
+            "bbox": [float(x) for x in state["bbox"]],
+            "num_lidar_pts": count_points_in_bbox(state["pcd"], state["bbox"]),
+            "manual_dims": False,
+            "static": True,
+        })
+        state["selected_label_idx"] = len(state["label_items"]) - 1
+        render(load_existing=False)
+        set_free_edit_camera()
+        vis.update_renderer()
+        print("Created new static car box. Save with X to propagate it to all frames.")
+        return False
+
+    def select_label(delta: int):
+        labels = state["label_items"]
+        if not labels:
+            print("No multi-label boxes in this frame")
+            return False
+        state["selected_label_idx"] = (state["selected_label_idx"] + delta) % len(labels)
+        sync_bbox_from_selected_label()
+        selected = selected_label()
+        selected_kind = "static" if selected and selected.get("static") else "label"
+        print(
+            f"Selected box {state['selected_label_idx'] + 1}/{len(labels)} "
+            f"({selected_kind}) {format_bbox(state['bbox'])}"
+        )
+        render(load_existing=False)
+        return False
+
+    def delete_selected_static_box(_vis=None):
+        labels = state["label_items"]
+        selected = selected_label()
+        if selected is None:
+            print("No selected box to delete")
+            return False
+        if not selected.get("static"):
+            print("Refusing to delete a non-static/manual box")
+            return False
+        _frame_path, label_path = current_paths()
+        removed = labels.pop(state["selected_label_idx"])
+        state["selected_label_idx"] = min(
+            state["selected_label_idx"],
+            max(0, len(labels) - 1),
+        )
+        if labels:
+            sync_bbox_from_selected_label()
+            state["box_visible"] = True
+        else:
+            state["box_visible"] = False
+        save_labels(label_path, labels)
+        print(f"Deleted selected static box: {format_bbox(removed['bbox'])}")
+        propagate_static_labels_from_current(allow_empty=True)
+        render(load_existing=False)
         return False
 
     def print_help(_vis=None):
@@ -546,7 +916,7 @@ def run(args) -> None:
         )
         return False
 
-    keymap = {
+    edit_keymap = {
         "W": lambda v: mutate(delta=(0.0, move_step(), 0.0)),
         "S": lambda v: mutate(delta=(0.0, -move_step(), 0.0)),
         "A": lambda v: mutate(delta=(-move_step(), 0.0, 0.0)),
@@ -564,28 +934,43 @@ def run(args) -> None:
         "1": lambda v: set_step_scale(0.25),
         "2": lambda v: set_step_scale(1.0),
         "3": lambda v: set_step_scale(2.0),
+        "4": lambda v: select_label(-1),
+        "5": lambda v: select_label(1),
+        "6": new_static_car_box,
         "N": next_frame,
         "B": prev_frame,
         "C": new_box,
         "P": copy_previous,
         "T": reset_template,
         "V": lambda v: (state.update({"ignored": False, "box_visible": not state["box_visible"]}), render(load_existing=False), False)[-1],
-        "0": mark_invalid_current,
+        "0": toggle_invalid_current,
         "Z": delete_current,
         "R": lambda v: (reset_camera(), vis.update_renderer(), False)[-1],
         "F": lambda v: (set_free_edit_camera(), vis.update_renderer(), False)[-1],
         "M": lambda v: (set_top_down_camera(), vis.update_renderer(), False)[-1],
-        "X": save_current,
+        "X": save_current_and_propagate,
         "?": print_help,
     }
+    view_keymap = {
+        "4": lambda v: select_label(-1),
+        "5": lambda v: select_label(1),
+        "N": next_frame,
+        "B": prev_frame,
+        "R": lambda v: (reset_camera(), vis.update_renderer(), False)[-1],
+        "F": lambda v: (set_free_edit_camera(), vis.update_renderer(), False)[-1],
+        "M": lambda v: (set_top_down_camera(), vis.update_renderer(), False)[-1],
+        "?": print_help,
+    }
+    keymap = view_keymap if args.view_only else edit_keymap
 
     for key, callback in keymap.items():
         vis.register_key_callback(ord(key), callback)
-    for key_code in (48, 96):
-        vis.register_key_callback(key_code, mark_invalid_current)
-    vis.register_key_callback(ord("Y"), mark_invalid_current)
+    if not args.view_only:
+        for key_code in (48, 96):
+            vis.register_key_callback(key_code, mark_invalid_current)
+        vis.register_key_callback(ord("Y"), toggle_invalid_current)
 
-    print(HELP_TEXT)
+    print(VIEW_HELP_TEXT if args.view_only else HELP_TEXT)
     render(load_existing=True)
     vis.run()
     vis.destroy_window()
@@ -596,6 +981,8 @@ Manual bbox editor controls
 ---------------------------
 Mouse       rotate / zoom / pan view
 1/2/3       fine / normal / coarse edit steps
+4/5         select previous / next box in multi-label frames
+6           create a new static car box
 W/S         move bbox +Y / -Y
 A/D         move bbox -X / +X
 Q/E         move bbox up / down
@@ -604,17 +991,32 @@ U/O         length + / -
 I/K         width  + / -
 G/H         height + / -
 P           copy previous frame label; template dims/z stay locked
-C           create a new visible box and switch to free 3D edit camera
+C           create a new class box and switch to free 3D edit camera
 T           reset dimensions and template z to class/frame template
 V           show / hide current box without deleting file
-0/Y         mark current frame as invalid for dataset creation
-Z           mark current frame as invalid; no files are deleted
-X           save current bbox JSON
+0/Y         toggle current frame invalid/uninvalid for dataset creation
+Z           delete selected static box in this frame and all other frames
+X           save current bbox JSON; static boxes are propagated to all frames
 N/B         next / previous frame
 R           reset camera
 F           free 3D edit camera centered on current box
 M           top-down camera
 ?           print this help
+"""
+
+
+VIEW_HELP_TEXT = """
+Label viewer controls
+---------------------
+Mouse       rotate / zoom / pan view
+N/B         next / previous frame
+R           reset camera
+F           free 3D camera centered on first box
+M           top-down camera
+?           print this help
+
+View-only mode does not save, edit, delete or mark frames invalid.
+Static labels are shown in green; regular labels use the class color.
 """
 
 
@@ -626,6 +1028,11 @@ def parse_args():
     parser.add_argument("--pcd-dir", default="merged_pcd")
     parser.add_argument("--label-dir", required=True)
     parser.add_argument("--class-name", choices=sorted(TEMPLATES), default="car")
+    parser.add_argument(
+        "--view-only",
+        action="store_true",
+        help="Show all labels in each frame without editing or writing files.",
+    )
     parser.add_argument(
         "--template-from-index",
         type=int,
