@@ -352,6 +352,13 @@ def strip_static_and_invalid_labels(data: object) -> list[dict]:
     ]
 
 
+def static_bbox_key(label: dict, ndigits: int = 6) -> tuple[float, ...] | None:
+    bbox = label.get("bbox")
+    if not isinstance(bbox, list) or len(bbox) < 7:
+        return None
+    return tuple(round(float(value), ndigits) for value in bbox[:7])
+
+
 def format_bbox(bbox: list[float]) -> str:
     x, y, z, dx, dy, dz, yaw = bbox
     return (
@@ -648,11 +655,45 @@ def run(args) -> None:
     def save_current_and_propagate(_vis=None):
         return save_current(_vis, propagate_static=True)
 
-    def propagate_static_labels_from_current(allow_empty: bool = False):
+    def collect_existing_static_templates() -> list[dict]:
+        templates = []
+        seen = set()
+        for existing_label_path in sorted(label_dir.glob("*.json")):
+            data = read_label_data(existing_label_path)
+            if not isinstance(data, list):
+                continue
+            for item in data:
+                if (
+                    isinstance(item, dict)
+                    and item.get("static")
+                    and "bbox" in item
+                ):
+                    key = static_bbox_key(item)
+                    if key is None or key in seen:
+                        continue
+                    templates.append(dict(item))
+                    seen.add(key)
+        return templates
+
+    def propagate_static_labels_from_current(
+        allow_empty: bool = False,
+        replace_static_set: bool = False,
+    ):
         static_templates = [
             dict(label) for label in state["label_items"]
             if isinstance(label, dict) and label.get("static") and "bbox" in label
         ]
+        if not replace_static_set:
+            seen = {
+                key for key in (static_bbox_key(label) for label in static_templates)
+                if key is not None
+            }
+            for label in collect_existing_static_templates():
+                key = static_bbox_key(label)
+                if key is None or key in seen:
+                    continue
+                static_templates.append(label)
+                seen.add(key)
         if not static_templates and not allow_empty:
             return
 
@@ -757,15 +798,17 @@ def run(args) -> None:
             print("No previous frame to copy")
             return False
         state["ignored"] = False
-        state["label_items"] = []
         prev_label = label_dir / f"{files[state['idx'] - 1].stem}.json"
-        state["bbox"], state["manual_dims"] = load_label(
-            prev_label,
-            class_name,
-            state["pcd"],
-            template_dims=template_dims,
-            force_template_dims=False,
-        )
+        previous_labels = [
+            dict(item) for item in load_display_labels(prev_label, None)
+            if item.get("label") == class_name and not item.get("static", False)
+        ]
+        if not previous_labels:
+            print(f"No previous non-static {class_name} label to copy")
+            return False
+        copied = previous_labels[0]
+        state["bbox"] = [float(x) for x in copied["bbox"]]
+        state["manual_dims"] = bool(copied.get("manual_dims", False))
         if not np.allclose(
                 np.asarray(state["bbox"][3:6], dtype=float),
                 np.asarray(template_dims, dtype=float),
@@ -777,6 +820,26 @@ def run(args) -> None:
             force_dims=False,
             force_z=force_template_z,
         )
+        copied["label"] = class_name
+        copied["bbox"] = [float(x) for x in state["bbox"]]
+        copied["num_lidar_pts"] = count_points_in_bbox(state["pcd"], state["bbox"])
+        copied["manual_dims"] = bool(state["manual_dims"])
+        copied.pop("static", None)
+        target_idx = None
+        for idx, label in enumerate(state["label_items"]):
+            if (
+                isinstance(label, dict)
+                and label.get("label") == class_name
+                and not label.get("static", False)
+            ):
+                target_idx = idx
+                break
+        if target_idx is None:
+            state["label_items"].append(copied)
+            state["selected_label_idx"] = len(state["label_items"]) - 1
+        else:
+            state["label_items"][target_idx] = copied
+            state["selected_label_idx"] = target_idx
         state["box_visible"] = True
         render(load_existing=False)
         return False
@@ -887,7 +950,10 @@ def run(args) -> None:
             state["box_visible"] = False
         save_labels(label_path, labels)
         print(f"Deleted selected static box: {format_bbox(removed['bbox'])}")
-        propagate_static_labels_from_current(allow_empty=True)
+        propagate_static_labels_from_current(
+            allow_empty=True,
+            replace_static_set=True,
+        )
         render(load_existing=False)
         return False
 
