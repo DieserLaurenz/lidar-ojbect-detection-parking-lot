@@ -735,8 +735,18 @@ def run(args) -> None:
         state["ignored"] = False
         state["label_items"] = [dict(label) for label in labels]
         state["selected_label_idx"] = 0
+        for idx, label in enumerate(state["label_items"]):
+            if (
+                isinstance(label, dict)
+                and label.get("label") == class_name
+                and not label.get("static", False)
+                and "bbox" in label
+            ):
+                state["selected_label_idx"] = idx
+                break
         if state["label_items"]:
             sync_bbox_from_selected_label()
+            state["box_visible"] = True
         else:
             state["bbox"] = default_bbox_from_current_view(
                 state["pcd"],
