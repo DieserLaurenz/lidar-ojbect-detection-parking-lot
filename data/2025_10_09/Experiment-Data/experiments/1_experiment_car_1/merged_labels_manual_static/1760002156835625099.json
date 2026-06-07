@@ -68,5 +68,23 @@
     ],
     "num_lidar_pts": 469,
     "static": true
+  },
+  {
+    "label": "person",
+    "bbox": [
+      0.9444979995489124,
+      3.2387629985809294,
+      0.9052742958068896,
+      0.6500000000000001,
+      0.5,
+      1.8000000000000003,
+      0.0
+    ],
+    "manual_dims": false,
+    "static": true,
+    "num_lidar_pts": 599
+  },
+  {
+    "invalid_frame": true
   }
 ]

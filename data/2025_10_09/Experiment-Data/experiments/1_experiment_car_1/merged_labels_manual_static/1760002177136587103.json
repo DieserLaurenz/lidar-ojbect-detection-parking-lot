@@ -1,3 +1,19 @@
-{
-  "invalid_frame": true
-}
+[
+  {
+    "label": "person",
+    "bbox": [
+      0.7425212562084198,
+      1.665765404701233,
+      2.308079242706299,
+      0.5,
+      0.5,
+      1.5,
+      0.0
+    ],
+    "num_lidar_pts": 1327,
+    "manual_dims": false
+  },
+  {
+    "invalid_frame": true
+  }
+]
