@@ -68,5 +68,8 @@
     ],
     "num_lidar_pts": 279,
     "static": true
+  },
+  {
+    "invalid_frame": true
   }
 ]

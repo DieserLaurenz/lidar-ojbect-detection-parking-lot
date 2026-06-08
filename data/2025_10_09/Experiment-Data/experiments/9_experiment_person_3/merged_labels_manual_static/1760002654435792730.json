@@ -97,5 +97,8 @@
     "num_lidar_pts": 415,
     "manual_dims": true,
     "static": true
+  },
+  {
+    "invalid_frame": true
   }
 ]

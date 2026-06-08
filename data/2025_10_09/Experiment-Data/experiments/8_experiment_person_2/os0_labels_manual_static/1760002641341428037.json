@@ -96,5 +96,19 @@
     ],
     "num_lidar_pts": 563,
     "static": true
+  },
+  {
+    "label": "car",
+    "bbox": [
+      -1.92,
+      -5.62,
+      0.725,
+      4.5,
+      1.9,
+      1.35,
+      0.0208
+    ],
+    "num_lidar_pts": 445,
+    "static": true
   }
 ]

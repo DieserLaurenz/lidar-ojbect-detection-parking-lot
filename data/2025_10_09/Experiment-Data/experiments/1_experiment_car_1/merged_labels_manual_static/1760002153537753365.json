@@ -66,9 +66,8 @@
       1.8000000000000003,
       0.0
     ],
-    "manual_dims": false,
-    "static": true,
-    "num_lidar_pts": 585
+    "num_lidar_pts": 585,
+    "static": true
   },
   {
     "invalid_frame": true

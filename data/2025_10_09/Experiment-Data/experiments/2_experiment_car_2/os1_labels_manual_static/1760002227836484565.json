@@ -10,7 +10,7 @@
       1.35,
       -2.83097706016517
     ],
-    "num_lidar_pts": 2272,
+    "num_lidar_pts": 2268,
     "manual_dims": true
   },
   {
@@ -24,7 +24,7 @@
       1.64,
       1.5707963267948966
     ],
-    "num_lidar_pts": 7998,
+    "num_lidar_pts": 7127,
     "static": true
   },
   {
@@ -38,7 +38,7 @@
       1.84,
       1.972222054
     ],
-    "num_lidar_pts": 1186,
+    "num_lidar_pts": 1183,
     "static": true
   },
   {
@@ -52,7 +52,21 @@
       1.42,
       0.0
     ],
-    "num_lidar_pts": 574,
+    "num_lidar_pts": 531,
+    "static": true
+  },
+  {
+    "label": "person",
+    "bbox": [
+      0.8944979995489124,
+      3.338762998580929,
+      0.9052742958068896,
+      0.55,
+      0.6000000000000001,
+      1.8000000000000003,
+      0.0
+    ],
+    "num_lidar_pts": 250,
     "static": true
   }
 ]
