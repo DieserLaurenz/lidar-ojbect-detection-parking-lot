@@ -23,7 +23,7 @@
       1.5,
       -1.6000000000000008
     ],
-    "num_lidar_pts": 5947,
+    "num_lidar_pts": 5771,
     "static": true
   },
   {
@@ -37,7 +37,7 @@
       1.42,
       0.0
     ],
-    "num_lidar_pts": 246,
+    "num_lidar_pts": 216,
     "static": true
   },
   {
@@ -65,7 +65,7 @@
       1.5492891755941467,
       1.4658389751720948
     ],
-    "num_lidar_pts": 467,
+    "num_lidar_pts": 409,
     "static": true
   }
 ]

@@ -10,7 +10,7 @@
       1.42,
       0.0
     ],
-    "num_lidar_pts": 587,
+    "num_lidar_pts": 540,
     "static": true
   },
   {
@@ -24,7 +24,7 @@
       1.5,
       -1.6500000000000008
     ],
-    "num_lidar_pts": 318,
+    "num_lidar_pts": 309,
     "static": true
   },
   {
@@ -38,7 +38,7 @@
       1.495980031196304,
       1.483233575033916
     ],
-    "num_lidar_pts": 725,
+    "num_lidar_pts": 632,
     "static": true
   },
   {
@@ -66,7 +66,7 @@
       1.9000000000000004,
       -1.0600409181749564
     ],
-    "num_lidar_pts": 1331,
+    "num_lidar_pts": 1329,
     "static": true
   },
   {
@@ -81,6 +81,20 @@
       -1.6100409181749569
     ],
     "num_lidar_pts": 6813,
+    "static": true
+  },
+  {
+    "label": "car",
+    "bbox": [
+      -1.92,
+      -5.62,
+      0.725,
+      4.5,
+      1.9,
+      1.35,
+      0.0208
+    ],
+    "num_lidar_pts": 37,
     "static": true
   }
 ]
