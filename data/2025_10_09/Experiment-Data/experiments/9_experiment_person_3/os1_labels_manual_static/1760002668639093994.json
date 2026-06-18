@@ -11,7 +11,7 @@
       1.5707963267948966
     ],
     "static": true,
-    "num_lidar_pts": 5333
+    "num_lidar_pts": 6135
   },
   {
     "label": "car",
@@ -39,7 +39,7 @@
       0.0
     ],
     "static": true,
-    "num_lidar_pts": 529
+    "num_lidar_pts": 573
   },
   {
     "label": "person",

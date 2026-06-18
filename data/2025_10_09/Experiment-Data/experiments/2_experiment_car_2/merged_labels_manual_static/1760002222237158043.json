@@ -10,7 +10,7 @@
       1.35,
       1.4750000000000008
     ],
-    "num_lidar_pts": 4931,
+    "num_lidar_pts": 4939,
     "manual_dims": true
   },
   {
@@ -24,7 +24,7 @@
       1.64,
       1.5707963267948966
     ],
-    "num_lidar_pts": 7313,
+    "num_lidar_pts": 8181,
     "static": true
   },
   {
@@ -38,7 +38,7 @@
       1.84,
       1.972222054
     ],
-    "num_lidar_pts": 18287,
+    "num_lidar_pts": 18292,
     "static": true
   },
   {
@@ -52,7 +52,7 @@
       1.42,
       0.0
     ],
-    "num_lidar_pts": 423,
+    "num_lidar_pts": 447,
     "static": true
   },
   {
@@ -66,7 +66,7 @@
       1.7,
       1.5457963267948962
     ],
-    "num_lidar_pts": 410,
+    "num_lidar_pts": 431,
     "static": true
   },
   {

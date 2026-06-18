@@ -23,7 +23,7 @@
       1.7000000000000006,
       1.500000000000001
     ],
-    "num_lidar_pts": 5246
+    "num_lidar_pts": 5247
   },
   {
     "label": "car",
@@ -36,7 +36,7 @@
       1.84,
       1.9722
     ],
-    "num_lidar_pts": 1217,
+    "num_lidar_pts": 1219,
     "static": true
   },
   {
@@ -50,7 +50,7 @@
       1.64,
       1.5708
     ],
-    "num_lidar_pts": 5967,
+    "num_lidar_pts": 6349,
     "static": true
   },
   {
@@ -78,7 +78,7 @@
       1.42,
       0.0
     ],
-    "num_lidar_pts": 529,
+    "num_lidar_pts": 573,
     "static": true
   },
   {

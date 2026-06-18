@@ -11,7 +11,7 @@
       1.5707963267948966
     ],
     "static": true,
-    "num_lidar_pts": 269
+    "num_lidar_pts": 278
   },
   {
     "label": "person",
