@@ -37,7 +37,7 @@
       1.64,
       1.5708
     ],
-    "num_lidar_pts": 247,
+    "num_lidar_pts": 242,
     "static": true
   },
   {
@@ -66,6 +66,20 @@
       1.5458
     ],
     "num_lidar_pts": 36,
+    "static": true
+  },
+  {
+    "label": "car",
+    "bbox": [
+      10.018424,
+      0.406834,
+      0.714134,
+      4.652358,
+      1.918396,
+      1.403547,
+      1.473719
+    ],
+    "num_lidar_pts": 614,
     "static": true
   }
 ]
