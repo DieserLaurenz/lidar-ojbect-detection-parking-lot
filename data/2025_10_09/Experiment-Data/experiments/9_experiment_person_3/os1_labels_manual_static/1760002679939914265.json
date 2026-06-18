@@ -10,22 +10,8 @@
       1.84,
       1.972222054
     ],
-    "static": true,
-    "num_lidar_pts": 194
-  },
-  {
-    "label": "car",
-    "bbox": [
-      -2.27,
-      19.69,
-      0.56,
-      3.96,
-      1.52,
-      1.42,
-      0.0
-    ],
-    "static": true,
-    "num_lidar_pts": 196
+    "num_lidar_pts": 194,
+    "static": true
   },
   {
     "label": "person",
@@ -39,7 +25,20 @@
       0.0
     ],
     "num_lidar_pts": 38,
-    "manual_dims": true,
+    "static": true
+  },
+  {
+    "label": "car",
+    "bbox": [
+      -2.27,
+      19.69,
+      0.56,
+      3.96,
+      1.52,
+      1.42,
+      0.0
+    ],
+    "num_lidar_pts": 196,
     "static": true
   }
 ]
