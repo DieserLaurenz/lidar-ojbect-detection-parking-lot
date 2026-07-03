@@ -1,0 +1,281 @@
+# Daten-Audit & Korrekturen (Daten-Version v2)
+
+**Datum:** 2026-07-02
+**Anlass:** Verifikation, dass die Trainingsdatenbasis (Experiment-Daten → MMDetection3D/KITTI-Format) sauber ist und das Finetuning aussagekräftige Ergebnisse liefert.
+
+---
+
+## 1. Audit-Umfang und Methode
+
+Geprüft wurde die komplette Datenkette:
+
+```
+manuelle Labels (*_labels_manual_correct/, Editor-Konvention)
+  → tools/dataset_converters/exp.py          (Umbenennung/Sammlung, LUMPI-Klassen)
+  → tools/dataset_converters/exp_to_kitti.py (Welt-Transformation, KITTI-Klassen)
+  → tools/create_data.py exp --target-dataset kitti  (Full-View-PKLs)
+  → tools/dataset_converters/split_exp_infos.py      (temporale 80/10/10-Splits)
+  → Training/Eval (LUMPIDataset + OSDaR23Metric)
+```
+
+Prüfskript (`audit_data.py`, auf dem GPU-Server ausgeführt) verifizierte:
+Split-Disjunktheit, Klassenverteilungen, Label-Aktualität (Stichprobe von 156
+Roh-Labels unabhängig durch die Transformation gerechnet und mit den PKLs
+verglichen), z-Konvention (Punkte-in-Box-Zählung gegen gespeicherte
+`num_lidar_pts`), Box-Positionen gegen die `point_cloud_range`,
+Intensitätswertebereiche sowie MD5-Gleichheit der Converter lokal/Server.
+
+## 2. Ergebnis: Was nachweislich sauber ist
+
+| Prüfung | Ergebnis |
+|---|---|
+| train/val/test disjunkt (alle 3 Views) | ✓ 0 Überlappungen, 0 Duplikate |
+| Temporale Ordnung der Splits | ✓ val/test zeitlich nach train, pro Experiment |
+| Alle 9 Experimente in jedem Split | ✓ |
+| PKLs entsprechen finalen `_manual_correct`-Labels | ✓ 156 Stichproben, 0 Abweichungen |
+| Klassen-Mapping Editor→LUMPI→KITTI | ✓ person=0, bicycle=1, car=2 |
+| Boxen mit 0 Punkten / degenerierte Dimensionen | ✓ keine |
+| Box-Zentren in `point_cloud_range` | ✓ 54 221/54 221 |
+| Converter-Skripte lokal = Server | ✓ MD5-identisch |
+| Ignorierte Frames (`invalid_frame: true`) ausgeschlossen | ✓ 9 981 Roh-Frames − 2 521 markierte = 7 460 konvertiert = 7 460 PKL-Samples (exakt) |
+
+**Zu den ignorierten Frames:** Der Label-Editor speichert seinen
+"ignored"-Zustand als `invalid_frame: true` in der Label-JSON (frame- oder
+instanz-level). `exp.py::is_invalid_frame_annotation()` prüft genau diese
+Flags und überspringt die gesamte Datei — auch die 1 148 markierten Frames,
+die noch Boxen enthalten, wurden vollständig ausgeschlossen. Zusätzlich
+löscht der Converter zuvor konvertierte Ausgaben, wenn ein Frame nachträglich
+als invalid markiert wurde. Die Zählung geht ohne Rest auf; ignorierte Labels
+sind nachweislich **nicht** ins Training gelangt.
+
+## 3. Gefundene Fehler und Korrekturen (→ Daten v2)
+
+### 3.1 z-Konvention: Gravity-Center statt Bottom-Center (Fehler, behoben)
+
+Der manuelle Label-Editor speichert `bbox[2]` als **Box-Zentrum**
+(Open3D-`OrientedBoundingBox`-Konvention). Beweis: Die gespeicherten
+`num_lidar_pts` korrelieren mit der Zentrum-Interpretation zu **1.000**
+(Unterkante: 0.936). MMDetection3D (`LiDARInstance3DBoxes`, Origin z=0)
+erwartet jedoch die **Unterkante**.
+
+**Fix:** `exp_to_kitti.convert_labels()` verschiebt jetzt `bbox[2] -= dz/2`
+(Gravity-Center → Bottom-Center). Nach Regenerierung: `corr(num_lidar_pts,
+Bottom-Interpretation) = 1.000`. ✓
+
+### 3.2 Boden lag unterhalb der z-Range → Punkte wurden abgeschnitten (Fehler, behoben)
+
+Gemessene Bodenebene im Experiment-Rohframe: z ≈ −0.14. Mit der alten
+Translation `T_z = −3.3` lag der Boden in KITTI-Koordinaten bei ≈ −3.44 —
+**unterhalb** der `point_cloud_range` z = [−3, 1]. Der `PointsRangeFilter`
+entfernte dadurch im Training den Boden und die **unteren ~0.4 m aller
+Objekte** aus der Eingabe.
+
+**Fix:** `T_z = −1.6` → Boden bei z ≈ −1.74, wie in KITTI (LiDAR-Höhe
+~1.73 m). Damit passen auch die aus KITTI übernommenen Anchor-z-Werte
+(−0.6 Fußgänger/Radfahrer, −1.78 Auto) und der Pretrained-Checkpoint
+geometrisch exakt. Nach Regenerierung: Punkte-z-Spanne −1.82..0.87
+(vollständig in der Range), Box-Unterkanten −1.79..−1.30. ✓
+
+### 3.3 Intensitätsnormierung pro Frame (Fehler, behoben)
+
+Alt: `(i + min) · 1/max` — formal falsche Min-Max-Normierung, und der
+Frame-Maximalwert schwankt zwischen ~2 900 und ~5 800 (Faktor 2), wodurch
+dieselbe Oberfläche je Frame unterschiedliche Intensität bekam.
+
+**Fix:** fester globaler Divisor `INTENSITY_SCALE = 5000` mit Clipping auf
+[0, 1] (gewählt anhand gemessener Frame-Maxima 2 876..5 754, p99 ≈ 4 742).
+
+### 3.4 IoU-Berechnung der Metrik (Präzisierung, behoben)
+
+`mmcv.ops.diff_iou_rotated_3d` erwartet z am **Zentrum**. Nach dem
+Bottom-Center-Fix (3.1) konvertiert `OSDaR23Metric.compute_mmcv_iou()` GT
+und Prediction jetzt explizit mit `z += dz/2`, sodass die 3D-IoU exakt ist.
+
+### 3.5 Metrik verwässerte seltene Klassen massiv (Fehler, behoben 2026-07-02 abends)
+
+Die `OSDaR23Metric` berechnete AP **pro Frame** (AP11 über die
+Predictions eines einzelnen Frames) und mittelte dann über **alle** Frames
+des Splits — auch über Frames, in denen die Klasse gar nicht vorkommt
+(diese zählten als AP = 0). Damit war die AP einer Klasse nach oben durch
+`(Frames mit Klasse / alle Frames) × 0.909` begrenzt (0.909 statt 1.0 wegen
+eines zweiten Fehlers: strikte `>`-Interpolation, Level 1.0 unerreichbar).
+
+Konkret auf dem merged-Test-Split: bicycle kommt in 70 von 266 Frames vor
+→ Obergrenze 70/266 × 0.909 = **0.2392** — exakt der gemeldete Wert. Eine
+unabhängige Analyse der Prediction-Dumps zeigte: **alle 70/70 Test-Bikes
+wurden erkannt** (score > 0.3). Die vermeintliche bicycle-Schwäche war
+vollständig ein Metrik-Artefakt; auch car war mit 0.9078 bereits an der
+Sättigungsgrenze (0.909) und konnte nichts mehr differenzieren.
+
+**Fix:** Umstellung auf datensatzweites AP (Standard wie KITTI/COCO):
+Matching bleibt frame-lokal (greedy, score-absteigend, IoU-Schwelle),
+aber die (Score, TP)-Paare aller Frames werden gepoolt, nach Score
+gerankt und die PR-Kurve gegen die Gesamt-GT-Zahl des Splits integriert
+(AP11 mit korrektem `>=`). Nebeneffekt: IoU-Matrix wird nur noch einmal
+pro Klasse/Frame berechnet statt einmal pro Schwelle (~4× schnellere Eval).
+
+Hinweis: Die Best-Checkpoint-Auswahl der bisherigen Runs erfolgte noch
+mit der alten Metrik; da die Verwässerung pro Klasse ein konstanter
+Faktor ist, bleibt das Epochen-Ranking davon weitgehend unberührt.
+
+### 3.6 Kaputtes `create_data.py` im Projekt-Root (behoben)
+
+Die Kopie im Projekt-Root rief ein nicht existierendes
+`exp.create_train_val_test_split(seed=42, 70/15/15)` auf. Maßgeblich ist
+`mmdetection3d/tools/create_data.py` (create_test_split → update_pkl_infos;
+Splits separat via `split_exp_infos.py`, 80/10/10). Die Root-Kopie wurde
+durch die funktionierende Version ersetzt.
+
+## 4. Einschränkungen für die Interpretation (kein Fehler, dokumentieren!)
+
+1. **Klassenimbalance:** merged-Train enthält 12 676 car-, 3 256 person-,
+   aber nur 562 bicycle-Instanzen (~22:1 car:bicycle). Die niedrige
+   bicycle-AP ist primär hierdurch erklärt. Möglicher nächster Schritt:
+   klassenbalanciertes Sampling oder Loss-Gewichtung (separates Experiment,
+   um Attribution sauber zu halten).
+2. **Statische Objekte über Splits hinweg:** Die geparkten Autos derselben
+   Szene erscheinen identisch in train, val und test (temporaler Split,
+   gleiche Szene). Die car-AP misst daher überwiegend Wiedererkennung
+   bekannter statischer Objekte, keine Generalisierung auf neue Szenen.
+   Person und bicycle (bewegte Objekte an neuen Positionen) sind die
+   aussagekräftigeren Klassen.
+3. **Skip-if-exists in allen Convertern:** `exp.py` und `exp_to_kitti.py`
+   überspringen vorhandene Ausgabedateien. Bei jeder Label-Änderung müssen
+   `labels/` bzw. `labels_kitti/`, `points_kitti/` auf dem Server **vorher
+   geleert** werden, sonst bleiben veraltete Konvertierungen bestehen.
+
+## 5. Regenerierung Daten v2 (Server, durchgeführt 2026-07-02)
+
+```bash
+# Backup v1 (z-Center-Konvention):  ~/data/exp_v1_zcenter/
+mkdir -p ~/data/exp_v1_zcenter
+mv ~/data/exp/points_kitti ~/data/exp/labels_kitti ~/data/exp/exp_kitti_infos_* ~/data/exp_v1_zcenter/
+mkdir ~/data/exp/points_kitti ~/data/exp/labels_kitti
+
+cd ~/projects/dcaiti_masterarbeit/mmdetection3d
+python tools/create_data.py exp --root-path ~/data/experiments \
+    --out-dir data/exp --workers 8 --target-dataset kitti --only-annotation
+python tools/dataset_converters/split_exp_infos.py --root data/exp
+```
+
+Splits v2 sind deterministisch identisch zu v1 (gleiche Sample- und
+Klassenzahlen pro Split); nur Geometrie (z, T_z) und Intensitäten änderten sich.
+
+## 6. Konsequenz für alte Ergebnisse
+
+Der Lauf `~/runs/pointpillars/merged_ft` (v1-Daten, best val mAP 0.6415)
+ist **nicht mehr referenzierbar**: Er trainierte mit abgeschnittenem Boden,
+schwebenden Boxen (Halbe-Höhe-Versatz in mmdet3d-Semantik) und
+frame-abhängigen Intensitäten. Alle Views wurden auf v2 neu trainiert:
+
+| Run | Work-Dir | GPU |
+|---|---|---|
+| merged | `~/runs/pointpillars/merged_ft_v2` | 0 |
+| os1 (nach merged) | `~/runs/pointpillars/os1_ft_v2` | 0 |
+| os0 | `~/runs/pointpillars/os0_ft_v2` | 1 |
+
+Config unverändert: 50 Epochen, lr = 1e-4, Finetuning von
+`checkpoints/pointpillars_kitti_3class.pth`, `save_best='osdar23/mAP'`.
+Metrik-Zahlen v2 sind wegen 3.1–3.4 nicht mit v1 vergleichbar.
+
+## 7. Ergebnisse v2 mit korrigierter Metrik (Best-Checkpoint je Lauf, Test-Split)
+
+Alle Werte mit der **datensatzweiten AP** (Fix 3.5). Die zuvor hier
+dokumentierten Zahlen (merged test mAP 0.6532 usw.) stammten aus der
+verwässernden Pro-Frame-Metrik und sind nicht mehr referenzierbar.
+
+| Run | Best-Ep. | test mAP | AP30 person | AP30 car | AP30 bicycle | AP60 bicycle |
+|---|---|---|---|---|---|---|
+| merged (Baseline) | 25 | **0.8880** | 0.900 | 0.909 | 0.935 | 0.856 |
+| merged + GT-Sampling | 29 | **0.8916** | 0.903 | 0.909 | **0.972** | **0.883** |
+| os0 | 38 | **0.8514** | 0.873 | 0.997 | 0.838 | 0.551 |
+| os1 | 43 | **0.8457** | 0.907 | 0.909 | 0.804 | 0.681 |
+
+Beobachtungen:
+- **bicycle war nie schwach** — die frühere AP30 von 0.239 war das
+  Metrik-Artefakt aus 3.5. Real: 0.80–0.97 je nach View.
+- GT-Sampling (siehe `ABLATION_BICYCLE.md`) verbessert bicycle dennoch
+  messbar (AP30 +3.7, AP60 +2.7 Punkte auf merged) bei gleichbleibendem
+  person/car — die Maßnahme wirkt, nur auf höherem Niveau als gedacht.
+- Schwächste Punkte jetzt: person bei strengem IoU (AP60 0.67–0.77) und
+  bicycle auf os0 bei AP60 (0.55) — Lokalisierungspräzision kleiner
+  Objekte in den Einzelsensor-Views.
+- **merged > os0 ≈ os1**, konsistent mit der Punktdichte pro Objekt.
+
+Test-Kommando (je View):
+```bash
+python tools/test.py configs/pointpillars/pointpillars_hv_secfpn_8xb6-160e_kitti-3d-3class-exp-<view>.py \
+    ~/runs/pointpillars/<view>_ft_v2/best_osdar23_mAP_epoch_*.pth \
+    --work-dir ~/runs/pointpillars/<view>_ft_v2/test
+```
+
+## 8. Gültigkeitsbewertung (verifiziert 2026-07-02)
+
+**Kein Leakage im ML-Sinn — alle Punkte einzeln geprüft:**
+
+| Prüfung | Ergebnis |
+|---|---|
+| Frame-IDs train/val/test disjunkt (alle 3 Views, v2-PKLs) | ✓ 0 Überlappungen |
+| Punktwolken-Dateien train ∩ test | ✓ 0 gemeinsame .bin |
+| GT-Sampling-DB nur aus Train-Frames | ✓ 0/16 494 Einträge verletzen das (+ Assert im Skript) |
+| Checkpoint-Wahl nur auf val; test einmalig mit fixem Checkpoint | ✓ |
+| Keine auf Test-Daten gefittete Vorverarbeitung | ✓ nur feste Konstanten (R, T, Intensitäts-Skala) |
+| Keine Score-Filterung in der Eval (threshold 0.0) | ✓ alle FPs gehen in die Präzision ein |
+| Zielobjekte bewegen sich zwischen Splits | ✓ Test-Positionen = andere Frames/Zeitpunkte |
+
+**Verbleibende Gültigkeits-Einschränkungen (kein Leakage, aber Geltungsbereich):**
+
+1. **Ein-Szenen-Design:** Alle 9 Experimente teilen dieselbe Örtlichkeit;
+   die statischen Autos sind in train/val/test identisch. Die Ergebnisse
+   belegen die Erkennung *bekannter Objektinstanzen in bekannter Szene zu
+   ungesehenen Zeitpunkten/Positionen* — keine Generalisierung auf neue
+   Szenen oder neue Objektexemplare (nur 3 physische Fahrräder).
+2. **Temporale Nachbarschaft an Split-Grenzen:** val beginnt unmittelbar
+   nach train (~0.1 s Abstand); die ersten val-Frames sind mit den letzten
+   train-Frames hoch korreliert. **test liegt hinter val** und ist damit
+   die konservativere Zahl — für Kernaussagen test verwenden.
+3. **Kleine bicycle-Stichprobe:** 70 Test-Instanzen → AP-Differenzen von
+   wenigen Punkten entsprechen 2–3 Objekten; Ablation-Unterschiede
+   entsprechend vorsichtig interpretieren.
+4. **Checkpoint-Wahl der bisherigen Runs mit alter Metrik** (konstanter
+   Verwässerungsfaktor pro Klasse → Epochen-Ranking weitgehend unberührt);
+   künftige Runs selektieren mit der korrigierten Metrik.
+
+## 9. Dynamisch vs. statisch: die aussagekräftige Auswertung
+
+Die Roh-Labels tragen ein `static: true`-Flag (im Test-Split: 1 548 von
+1 583 car-GT statisch, 172 von 401 person-GT; alle 70 bicycle-GT dynamisch).
+Aggregierte Metriken werden von den trivial wiedererkennbaren statischen
+Parkern dominiert. `tools/analysis_tools/exp_eval_dynamic_static.py`
+evaluiert getrennt (statische GT als Ignore-Regionen beim Dynamik-AP und
+umgekehrt; Matching identisch zur korrigierten Metrik).
+
+**Test-Split, nur dynamische Objekte (AP30 / AP60):**
+
+| Run | person (n=229*) | bicycle (n=70) | car (n=34–35) |
+|---|---|---|---|
+| merged (Baseline) | 0.892 / 0.710 | 0.935 / 0.856 | 0.697 / 0.125 |
+| merged + GT-Sampling | 0.898 / 0.706 | **0.972 / 0.883** | **0.902** / 0.191 |
+| os0 | 0.737 / 0.408 (n=126) | 0.837 / 0.551 | 0.634 / 0.634 |
+| os1 | 0.905 / 0.559 (n=209) | 0.804 / 0.681 | **0.021 / 0.012** |
+
+*Statische Referenz: car AP30 ≈ 1.0 in allen Views — bestätigt die
+Vermutung, dass die Aggregatwerte von den Parkern getragen werden.*
+
+Zentrale Befunde:
+1. **Das dynamische (Ziel-)Auto ist der wahre Schwachpunkt**, vom
+   Aggregat (car ≈ 0.91) vollständig maskiert. In merged wird es zu 97%
+   gefunden (median IoU 0.66), aber mit niedriger Konfidenz (median Score
+   0.61 vs. ~0.98 bei Parkern) und mäßiger Boxgenauigkeit → AP60 0.125.
+2. **os1 versagt am dynamischen Auto fast völlig** (AP30 0.02), obwohl es
+   klar sichtbar ist (median 420 Punkte im GT): Die nächste car-Prediction
+   liegt median 1.52 m daneben (IoU 0.21) — systematische Fehllokalisierung
+   bei einseitiger Sensorsicht. os0: 0.63. **Merged-Fusion löst das
+   Problem** (97% < 1 m Distanz) — ein Kernargument für den
+   Multisensor-Ansatz der Arbeit.
+3. Dynamische person/bicycle sind in merged solide (0.89/0.94); die
+   Einzelsensoren fallen v. a. bei strengem IoU ab.
+4. Vorsicht bei n=34–35 (dynamisches Auto): kleine Stichprobe; zudem steht
+   das Zielauto im Test-Segment (Ende der Experimente) nahezu still
+   (x ≈ 22.9–23.3 m) — es misst die Erkennung des Zielfahrzeugs an seiner
+   Endposition, nicht Erkennung während schneller Fahrt.
