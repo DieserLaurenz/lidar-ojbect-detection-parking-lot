@@ -214,13 +214,17 @@ Tracking nötig.
 **Fehlermodus 3 — "Geisterräder"** (`fp_bike_spots.png`,
 `DATA_AUDIT.md` §11): 42 bicycle-FPs (Score ≥ 0.3), drei Ursachen:
 (a) echte ungelabelte statische Objekte, (b) Spiegelreflexions-Cluster
-unter dem Boden (Ablation mit Unterboden-Filter läuft), (c) reine
-**Positions-Halluzination** — Boxen über blankem Boden exakt auf dem
-Weg der Trainingsräder (0.23 m Abstand), belegt per Frame-Forensik.
-(c) ist eine direkte Folge der Ein-Szenen-Datenbasis (zentrale
-Limitation). Kein GT-Sampling-Artefakt (Baseline zeigt dieselben FPs).
-Cross-class-NMS-Nachverarbeitung entfernt Duplikat-Hypothesen
-(Rad/Person "im" Auto), ändert aber keinen AP-Wert.
+unter dem Boden, (c) reine **Positions-Halluzination** — Boxen über
+blankem Boden exakt auf dem Weg der Trainingsräder (0.23 m Abstand),
+belegt per Frame-Forensik. (c) ist eine direkte Folge der
+Ein-Szenen-Datenbasis (zentrale Limitation). Kein GT-Sampling-Artefakt
+(Baseline zeigt dieselben FPs). Zwei getestete Gegenmaßnahmen ohne
+Erfolg: Cross-class-NMS entfernt nur Duplikat-Hypothesen (Rad/Person
+"im" Auto), ändert keinen AP-Wert; ein Retrain mit
+**Unterboden-Filter** (Punkte z < −2 entfernt) reduzierte die
+Geisterboxen nicht (58 vs. 42) und verschlechterte das dynamische
+Auto (AP30 0.63 vs. 0.90) — Hypothese (b) ist damit als
+Haupt-Mechanismus widerlegt, der Filter wird nicht übernommen.
 
 **Precision-Recall-Kurven** (`pr_curves_merged.png`): GT-Sampling vs.
 Baseline je Klasse bei IoU 0.3/0.6 — GT-Sampling verschiebt die

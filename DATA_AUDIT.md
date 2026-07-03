@@ -399,10 +399,19 @@ ohne GT-Rad im Umkreis von 2 m. Untersuchung
   In-Auto-Duplikate), **alle AP-Werte unverändert** — die Duplikate
   ranken zu niedrig, um die Metrik zu berühren. Fazit: kosmetisch
   sinnvoll (saubere Ausgabe), metrisch neutral, risikofrei.
-- **Ablation Unterboden-Filter läuft** (`points_kitti_zfilt`: Punkte
-  z < −2.0 entfernt = 0.09 % aller Punkte; Config
-  `...exp-merged-gtsample-zfilt.py`, Run `merged_ft_v2_gtsample_zfilt`)
-  — Ergebnis wird hier nachgetragen.
+- **Ablation Unterboden-Filter (2026-07-03, Ergebnis: lohnt nicht):**
+  `points_kitti_zfilt` (Punkte z < −2.0 entfernt = 0.09 % aller
+  Punkte), Config `...exp-merged-gtsample-zfilt.py`, Run
+  `merged_ft_v2_gtsample_zfilt` (Best Ep. 26, val 0.8655). Test:
+  **mAP 0.8881** (gtsample: 0.8916). Die bicycle-Geisterboxen wurden
+  **nicht** weniger (58 vs. 42 — Trainings-Varianz, aber sicher keine
+  Reduktion); das dynamische Auto fiel auf AP30 0.63 (gtsample 0.90).
+  Einziger Gewinn: bicycle-Lokalisierung (AP60 0.94, konstant über
+  alle IoU-Schwellen). **Fazit:** Die Spiegelreflexionen sind nicht
+  der treibende Mechanismus hinter den Geisterboxen (konsistent mit
+  der Frame-Forensik: Positions-Halluzination + echte Objekte
+  dominieren); der Filter wird nicht übernommen, Standard bleibt
+  Daten v2 ungefiltert mit GT-Sampling.
 
 ## Anhang: Wie die Metrik zu lesen ist — IoU-Schwelle vs. Score
 
