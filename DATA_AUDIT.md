@@ -291,7 +291,44 @@ Zentrale Befunde:
    Einzelsensors, kein Trainingsproblem, und nur die Fusion (0.90) behebt es.
 3. Dynamische person/bicycle sind in merged solide (0.89/0.94); die
    Einzelsensoren fallen v. a. bei strengem IoU ab.
-4. Vorsicht bei n=34–35 (dynamisches Auto): kleine Stichprobe; zudem steht
-   das Zielauto im Test-Segment (Ende der Experimente) nahezu still
-   (x ≈ 22.9–23.3 m) — es misst die Erkennung des Zielfahrzeugs an seiner
-   Endposition, nicht Erkennung während schneller Fahrt.
+4. Vorsicht bei n=34–35 (dynamisches Auto): kleine Stichprobe; das
+   Zielauto bewegt sich im Test-Segment mit median ≈ 2.2 m/s (max 3.5,
+   aus den Label-Positionen aufeinanderfolgender Frames) — langsame
+   Fahrt, keine schnelle Durchfahrt.
+
+## 10. Ursachenanalyse: Warum ist AP60 beim dynamischen Auto niedrig?
+
+Skript: `tools/analysis_tools/exp_analyze_dyncar.py` (merged-Test-Split,
+35 Frames mit dynamischem Auto, Predictions aus `merged_gtsample`).
+
+**Hypothese "Bewegungsverschmierung durch Sweep-Fusion": WIDERLEGT.**
+- Die Label aller drei Views teilen dieselben Frame-Timestamps. Der
+  BEV-Versatz desselben dynamischen Autos zwischen os0- und os1-Label
+  im selben Frame beträgt median nur **0.09 m** (max 0.17 m) — bei
+  2.2 m/s entspricht das ≤ ~50 ms Sweep-Versatz. Zu klein, um IoU 0.6
+  zu verhindern. (merged-Label sind identisch mit os1-Label.)
+- Die Punkte des dynamischen Autos sind entlang der Fahrzeugachse
+  nicht verlängert, sondern decken nur **~60 % der GT-Boxlänge** ab
+  (statische Autos: ~95 %) — das Gegenteil von Verschmierung:
+  Teilsichtbarkeit.
+
+**Tatsächliche Ursache: systematische Größenunterschätzung.**
+Bestes Pred je GT (median über 35 Frames): IoU 0.614 (10/35 unter 0.6,
+0/35 unter 0.3 — gefunden wird es praktisch immer). Fehlerzerlegung:
+- Länge **−0.95 m**, Breite **−0.41 m** (GT 4.95×1.95×1.35; Pred
+  ≈ 4.0×1.55 — fast exakt der KITTI-car-Prior 3.9×1.6)
+- Zentrum quer nur 0.09 m daneben, längs +0.35 m (zur sichtbaren
+  Seite hin), z 0.02 m, Gierwinkel 3.6° — alles unkritisch.
+
+Geometrische Konsequenz: Selbst bei perfekter Zentrierung ergibt
+4.0×1.55 in 4.95×1.95 nur IoU ≈ 0.62 — die AP60-Schwäche ist fast
+vollständig der Boxgröße geschuldet. Das Netz regressiert bei nur
+~60 % sichtbarer Fahrzeuglänge auf sein KITTI-Größen-Prior.
+**Offener Prüfpunkt:** die realen Maße des Zielfahrzeugs nachmessen —
+GT 4.95×1.95 m ist groß; wäre die GT-Box großzügig gelabelt, wäre ein
+Teil der "Schwäche" ein Label-Artefakt.
+
+**Qualitative Belege:** `figures_analysis/qualitative_bev.png`
+(Skript `tools/analysis_tools/exp_viz_bev.py`): os1 ohne gültige
+Detektion am dynamischen Auto vs. merged mit Treffer im selben Frame,
+dazu Fahrrad- und Person-Beispiele.
