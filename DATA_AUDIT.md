@@ -188,19 +188,29 @@ verwässernden Pro-Frame-Metrik und sind nicht mehr referenzierbar.
 |---|---|---|---|---|---|---|
 | merged (Baseline) | 25 | **0.8880** | 0.900 | 0.909 | 0.935 | 0.856 |
 | merged + GT-Sampling | 29 | **0.8916** | 0.903 | 0.909 | **0.972** | **0.883** |
+| merged + Oversampling | 49 | 0.8788 | 0.901 | 0.909 | 0.890 | 0.881 |
 | os0 | 38 | **0.8514** | 0.873 | 0.997 | 0.838 | 0.551 |
+| os0 + GT-Sampling | 37 | 0.8412 | 0.863 | 0.997 | **0.982** | 0.496 |
 | os1 | 43 | **0.8457** | 0.907 | 0.909 | 0.804 | 0.681 |
+| os1 + GT-Sampling | 28 | **0.8570** | 0.902 | 0.909 | 0.863 | 0.791 |
+
+(GT-Sampling-Runs für os0/os1 vom 2026-07-03; deren Best-Checkpoint-Wahl
+lief durchgängig auf der korrigierten Metrik.)
 
 Beobachtungen:
 - **bicycle war nie schwach** — die frühere AP30 von 0.239 war das
   Metrik-Artefakt aus 3.5. Real: 0.80–0.97 je nach View.
-- GT-Sampling (siehe `ABLATION_BICYCLE.md`) verbessert bicycle dennoch
-  messbar (AP30 +3.7, AP60 +2.7 Punkte auf merged) bei gleichbleibendem
-  person/car — die Maßnahme wirkt, nur auf höherem Niveau als gedacht.
-- Schwächste Punkte jetzt: person bei strengem IoU (AP60 0.67–0.77) und
-  bicycle auf os0 bei AP60 (0.55) — Lokalisierungspräzision kleiner
+- GT-Sampling (siehe `ABLATION_BICYCLE.md`) verbessert bicycle überall
+  bei AP30 (merged +3.7, os0 +14.5, os1 +5.9 Punkte). Auf merged und os1
+  steigt auch das mAP; auf os0 sinkt es leicht (0.8514→0.8412), weil die
+  Lokalisierungsschärfe leidet (bicycle AP60 −5.5, mehr Predictions:
+  pred/GT-Ratio 1.17). Bei dünn besetzten Einzelsensor-Punktwolken ist
+  der Trade-off Detektion↔Präzision also sichtbar.
+- Schwächste Punkte: person bei strengem IoU (AP60 0.62–0.77) und
+  bicycle auf os0 bei AP60 — Lokalisierungspräzision kleiner
   Objekte in den Einzelsensor-Views.
-- **merged > os0 ≈ os1**, konsistent mit der Punktdichte pro Objekt.
+- **merged > os1 > os0** bei einheitlicher GT-Sampling-Konfiguration
+  (0.8916 / 0.8570 / 0.8412), konsistent mit der Punktdichte pro Objekt.
 
 Test-Kommando (je View):
 ```bash
@@ -256,8 +266,11 @@ umgekehrt; Matching identisch zur korrigierten Metrik).
 |---|---|---|---|
 | merged (Baseline) | 0.892 / 0.710 | 0.935 / 0.856 | 0.697 / 0.125 |
 | merged + GT-Sampling | 0.898 / 0.706 | **0.972 / 0.883** | **0.902** / 0.191 |
+| merged + Oversampling | 0.894 / 0.736 | 0.890 / 0.881 | 0.619 / 0.086 |
 | os0 | 0.737 / 0.408 (n=126) | 0.837 / 0.551 | 0.634 / 0.634 |
+| os0 + GT-Sampling | 0.725 / 0.348 (n=126) | 0.982 / 0.496 | 0.735 / 0.679 |
 | os1 | 0.905 / 0.559 (n=209) | 0.804 / 0.681 | **0.021 / 0.012** |
+| os1 + GT-Sampling | 0.895 / 0.455 (n=209) | 0.863 / 0.791 | 0.091 / 0.091 |
 
 *Statische Referenz: car AP30 ≈ 1.0 in allen Views — bestätigt die
 Vermutung, dass die Aggregatwerte von den Parkern getragen werden.*
@@ -272,7 +285,10 @@ Zentrale Befunde:
    liegt median 1.52 m daneben (IoU 0.21) — systematische Fehllokalisierung
    bei einseitiger Sensorsicht. os0: 0.63. **Merged-Fusion löst das
    Problem** (97% < 1 m Distanz) — ein Kernargument für den
-   Multisensor-Ansatz der Arbeit.
+   Multisensor-Ansatz der Arbeit. Bekräftigt durch die GT-Sampling-Runs:
+   Auch mit der besten Trainingskonfiguration bleibt os1 beim dynamischen
+   Auto bei 0.09 — das Versagen ist ein Geometrie-/Sichtproblem des
+   Einzelsensors, kein Trainingsproblem, und nur die Fusion (0.90) behebt es.
 3. Dynamische person/bicycle sind in merged solide (0.89/0.94); die
    Einzelsensoren fallen v. a. bei strengem IoU ab.
 4. Vorsicht bei n=34–35 (dynamisches Auto): kleine Stichprobe; zudem steht

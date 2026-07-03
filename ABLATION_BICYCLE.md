@@ -108,3 +108,32 @@ zulasten anderer Szenenteile. Einziger Pluspunkt: person AP60
 
 Der ursprüngliche Leidensdruck (vermeintliche bicycle-Schwäche AP 0.24)
 bestand ohnehin nicht — er war ein Messfehler (§ oben).
+
+## Nachtrag (2026-07-03): GT-Sampling auf os0/os1 übertragen
+
+Für einen methodisch einheitlichen View-Vergleich wurde die
+Gewinner-Konfiguration auch für die Einzelsensor-Views trainiert
+(GT-Databases strikt aus dem jeweiligen Train-Split; os0: 496,
+os1: 478 bicycle-Instanzen). Best-Checkpoint-Wahl durchgängig auf der
+korrigierten Metrik.
+
+| Run | test mAP | AP30 bicycle | AP60 bicycle | dyn. car AP30 |
+|---|---|---|---|---|
+| os0 Baseline | 0.8514 | 0.837 | 0.551 | 0.634 |
+| os0 + GT-Sampling | 0.8412 | **0.982** | 0.496 | 0.735 |
+| os1 Baseline | 0.8457 | 0.804 | 0.681 | 0.021 |
+| os1 + GT-Sampling | **0.8570** | 0.863 | **0.791** | 0.091 |
+
+Befunde:
+- **bicycle AP30 steigt überall** (os0 +14.5, os1 +5.9 Punkte), auf os1
+  auch AP60 (+11.0) und das mAP (+1.1). Auf os0 kippt der Trade-off:
+  Detektion ↑, Lokalisierungsschärfe ↓ (bicycle AP60 −5.5, person AP60
+  −3.2, pred/GT-Ratio 1.17) → mAP leicht unter Baseline. Bei der dünner
+  besetzten os0-Punktwolke erzeugen die eingefügten Instanzen offenbar
+  mehr unpräzise Zusatzdetektionen.
+- **Das dynamische Auto bleibt auf os1 kaputt (0.02 → 0.09)** — auch die
+  beste Trainingskonfiguration behebt die Fehllokalisierung bei
+  einseitiger Sicht nicht. Das stärkt das Fusionsargument: merged +
+  GT-Sampling erreicht 0.90.
+- View-Ranking bei einheitlicher Konfiguration:
+  **merged (0.8916) > os1 (0.8570) > os0 (0.8412)**.
