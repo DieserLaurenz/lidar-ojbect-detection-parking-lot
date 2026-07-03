@@ -391,6 +391,18 @@ ohne GT-Rad im Umkreis von 2 m. Untersuchung
   gegen Kategorie 3 helfen nur mehr Szenen-Diversität (hier nicht
   verfügbar), eine Statik-/Hintergrundkarte des fest installierten
   Sensors oder klassenweise Betriebspunkte (bicycle ≥ ~0.55).
+- **Ablation cross-class NMS (Nachverarbeitung, 2026-07-03):** Regel
+  "Prediction verwerfen, wenn ihr BEV-Footprint zu ≥ 80 % in einer
+  höher gescorten Prediction anderer Klasse liegt"
+  (`tools/analysis_tools/exp_crossclass_nms.py`, auf dem
+  merged-gtsample-Dump): entfernt 11/2353 Predictions (u. a. die
+  In-Auto-Duplikate), **alle AP-Werte unverändert** — die Duplikate
+  ranken zu niedrig, um die Metrik zu berühren. Fazit: kosmetisch
+  sinnvoll (saubere Ausgabe), metrisch neutral, risikofrei.
+- **Ablation Unterboden-Filter läuft** (`points_kitti_zfilt`: Punkte
+  z < −2.0 entfernt = 0.09 % aller Punkte; Config
+  `...exp-merged-gtsample-zfilt.py`, Run `merged_ft_v2_gtsample_zfilt`)
+  — Ergebnis wird hier nachgetragen.
 
 ## Anhang: Wie die Metrik zu lesen ist — IoU-Schwelle vs. Score
 

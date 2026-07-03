@@ -15,6 +15,8 @@ existieren nur fuer Test-Frames (letzte ~10% jedes Experiments).
 Benutzung:
     python experiment/prediction_viewer.py --experiment 1 --view merged
     python experiment/prediction_viewer.py -e 4 -v os0 --score-thr 0.5
+    python experiment/prediction_viewer.py -e 1 --full   # ALLE Frames
+                       # (braucht predictions_<view>_full.json)
 
 Tasten:
     N / Pfeil rechts   naechster Frame
@@ -93,7 +95,7 @@ def load_gt(exp_dir, view, ts):
 
 
 class Viewer:
-    def __init__(self, exp_id, view, score_thr, show_gt):
+    def __init__(self, exp_id, view, score_thr, show_gt, full=False):
         self.view = view
         self.thr = {0: score_thr, 1: score_thr, 2: score_thr}
         self.thr_class = None  # None = +/- wirkt auf alle Klassen
@@ -101,7 +103,8 @@ class Viewer:
         self.show_pred = True
         self.exp_dir = find_exp_dir(exp_id)
 
-        pred_file = PREDICTIONS / f"predictions_{view}.json"
+        suffix = "_full" if full else ""
+        pred_file = PREDICTIONS / f"predictions_{view}{suffix}.json"
         if not pred_file.exists():
             raise SystemExit(f"{pred_file} fehlt — erst vom Server exportieren.")
         with open(pred_file) as f:
@@ -238,13 +241,17 @@ def main():
     ap.add_argument("--score-thr", type=float, default=0.3)
     ap.add_argument("--no-gt", action="store_true",
                     help="Ground-Truth-Boxen nicht anzeigen")
+    ap.add_argument("--full", action="store_true",
+                    help="alle Frames statt nur Test-Split "
+                         "(predictions_<view>_full.json)")
     ap.add_argument("--check", action="store_true",
                     help="Nur Daten pruefen, kein Fenster oeffnen")
     args = ap.parse_args()
 
     if args.check:
         exp_dir = find_exp_dir(args.experiment)
-        with open(PREDICTIONS / f"predictions_{args.view}.json") as f:
+        suffix = "_full" if args.full else ""
+        with open(PREDICTIONS / f"predictions_{args.view}{suffix}.json") as f:
             data = json.load(f)
         frames = [v for v in data["frames"].values()
                   if v["experiment"] == str(args.experiment)]
@@ -260,7 +267,7 @@ def main():
         return
 
     Viewer(args.experiment, args.view, args.score_thr,
-           show_gt=not args.no_gt).run()
+           show_gt=not args.no_gt, full=args.full).run()
 
 
 if __name__ == "__main__":
