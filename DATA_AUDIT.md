@@ -332,3 +332,34 @@ Teil der "Schwäche" ein Label-Artefakt.
 (Skript `tools/analysis_tools/exp_viz_bev.py`): os1 ohne gültige
 Detektion am dynamischen Auto vs. merged mit Treffer im selben Frame,
 dazu Fahrrad- und Person-Beispiele.
+
+## 11. Analyse der bicycle-False-Positives ("Geisterboxen" im Viewer)
+
+Auf dem merged-Test-Split gibt es 42 bicycle-Predictions (score ≥ 0.3)
+ohne GT-Rad im Umkreis von 2 m. Untersuchung
+(`figures_analysis/fp_bike_spots.png`):
+
+- **Kein GT-Sampling-Artefakt:** Die Baseline (ohne GT-Sampling) hat
+  praktisch gleich viele (40) an denselben Orten.
+- Die FPs clustern an **wenigen festen Positionen**, die über mehrere
+  Experimente wiederkehren und median 0.5–0.9 m neben Positionen liegen,
+  an denen im Train-Zeitraum Räder standen/fuhren.
+- **Drei Kategorien** (Punktinhalt der Boxen):
+  1. **Echte statische Objekte** (29/42 mit >100 Punkten, median 880):
+     vertikale Strukturen ~1–2 m hoch (Pfosten/Busch/evtl. tatsächlich
+     abgestellte Räder — vor Ort prüfen!), die als bicycle
+     fehlklassifiziert werden bzw. schlicht nie gelabelt wurden.
+     Falls es echte Räder sind, ist die gemessene bicycle-Precision
+     unterschätzt (FPs wären eigentlich TPs ohne Label).
+  2. **Leere Boxen über Boden** (die "Geisterboxen" im Viewer): Im
+     Seitenschnitt liegt unter mehreren dieser Boxen ein Punktcluster
+     **0.3–0.5 m unter dem Boden** (z ≈ −2.0 bei Boden −1.74) —
+     Spiegelreflexionen (nasse Fläche/Glas). Die pc_range reicht bis
+     z = −3, PointPillars kollabiert die z-Achse pro Pillar → solche
+     Unterboden-Cluster können Detektionen an Anchor-Höhe auslösen.
+     Möglicher Fix (Future Work): Unterboden-Punkte (z < −2) beim
+     Konvertieren filtern oder pc_range-z-Minimum anheben; müsste als
+     Ablation geprüft werden.
+  3. Rest: niedrig-konfidente Fehldetektionen an Klutter.
+- Scores der FPs liegen bei 0.3–0.85 (meist < 0.6) — im Viewer mit
+  `+` auf 0.6 filterbar; in der AP ranken sie unter den meisten TPs.
