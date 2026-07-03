@@ -45,6 +45,31 @@ Ursachenanalysen: `DATA_AUDIT.md` §9–§10.
 
 ## 2. Laufzeiten (Evaluations-Setup)
 
+> **Zum Verständnis (einfache Sprache):**
+>
+> **Inferenzzeit** = wie schnell das Netz "denkt". Inferenz heißt, das
+> fertig trainierte Netz auf neue Daten anzuwenden: Punktwolke rein →
+> Netz rechnet → Bounding Boxes raus. Die Inferenzzeit ist die Dauer
+> dieses einen Durchlaufs. Der LiDAR liefert 10 Aufnahmen pro Sekunde
+> (alle 100 ms eine) — bleibt das Netz darunter, kann das System
+> **live** mitlaufen. Unser Netz schafft das selbst mit der doppelt so
+> großen fusionierten Punktwolke (85 ms).
+>
+> **Daten-Merge** = zwei Sensor-Aufnahmen zu einem Bild zusammenkleben.
+> Beide LiDARs sehen dieselbe Kreuzung aus verschiedenen Richtungen,
+> aber jeder in seinem eigenen Koordinatensystem (jeder hält sich
+> selbst für den Nullpunkt). Der Merge macht pro Aufnahme: beide
+> Punktwolken laden → Messrauschen entfernen → eine Wolke ins
+> Koordinatensystem der anderen drehen/verschieben (vorab kalibriert)
+> → Feinausrichtung per ICP (schiebt die Wolken millimetergenau
+> aufeinander) → Punkte aneinanderhängen. Die **Merge-Zeit** ist die
+> Dauer dieses Vorgangs. Unsere ~2.3 s pro Aufnahme klingen langsam,
+> aber fast alles davon sind Rauschfilter und die ICP-Feinausrichtung —
+> und Letztere müsste man nur **einmal** machen, weil die Sensoren fest
+> montiert sind (wir haben sie sicherheitshalber pro Aufnahme
+> wiederholt). Live bliebe nur drehen + zusammenkleben übrig: wenige
+> Millisekunden.
+
 **Inferenz** (Tesla V100-SXM3-32GB, Batch 1, `tools/analysis_tools/
 benchmark.py`, GT-Sampling-Modelle, inkl. Datenladen/Voxelisierung):
 
