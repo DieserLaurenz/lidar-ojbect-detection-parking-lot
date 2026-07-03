@@ -140,6 +140,33 @@ Die Fusion kostet also grob den Faktor 2 in der Inferenz (doppelte
 Punktzahl → doppelte Voxelisierungs-/Pillar-Arbeit); alle Varianten
 liegen über der Sensorrate von 10 Hz.
 
+### Echtzeitfähigkeit (Rechnung)
+
+Der Ouster-LiDAR liefert **10 Aufnahmen pro Sekunde**, d. h. alle
+
+```
+1 s / 10 Aufnahmen = 100 ms Zeitbudget pro Aufnahme
+```
+
+steht eine neue Punktwolke an. Echtzeitfähig ist das System, wenn die
+Verarbeitung einer Aufnahme fertig ist, bevor die nächste eintrifft —
+also unter 100 ms bleibt:
+
+| View | Zeit/Frame | Budget | Auslastung | Durchsatz vs. Sensorrate |
+|---|---|---|---|---|
+| merged | 85 ms | 100 ms | 85 % | 11.7 fps > 10 Hz ✓ |
+| os0 | 45 ms | 100 ms | 45 % | 22.3 fps > 10 Hz ✓ |
+| os1 | 43 ms | 100 ms | 43 % | 23.5 fps > 10 Hz ✓ |
+
+**Alle Varianten sind auf der Evaluations-GPU (eine V100) echtzeitfähig
+— auch die Fusion**, wenn auch mit nur ~15 ms Reserve. Zwei
+Einordnungen dazu: (1) Die Messung enthält bereits Datenladen und
+Voxelisierung, ist also eher konservativ. (2) Für die Ende-zu-Ende-
+Latenz im Live-Betrieb käme der Online-Merge hinzu — mit einmalig
+kalibrierter Extrinsik nur Transformation + Konkatenation (wenige ms),
+sodass das Gesamtsystem im 100-ms-Budget bliebe. Der hier gemessene
+Offline-Merge (2.25 s, per-Frame-ICP) ist dafür nicht repräsentativ.
+
 **Daten-Merge os0+os1 → merged** (`experiment/pcd_merge.py`, gemessen
 während der Vorverarbeitung, lokale CPU, 8 parallele Worker; n=3327,
 aus `merge_times.csv` je Experiment):
