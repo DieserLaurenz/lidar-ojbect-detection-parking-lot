@@ -7,6 +7,63 @@ vom KITTI-3-Klassen-Checkpoint, 50 Epochen, Best-Checkpoint nach
 Val-mAP. "GT-Sampling" = Copy-Paste-Augmentierung seltener Klassen aus
 dem jeweiligen Train-Split (`ABLATION_BICYCLE.md`).
 
+## 0. Zusammenfassung und Einordnung (einfache Sprache)
+
+**Worum ging es?** Zwei fest montierte LiDAR-Sensoren beobachten eine
+Kreuzung aus verschiedenen Richtungen. Ein neuronales Netz
+(PointPillars) soll darin Personen, Fahrräder und Autos finden. Die
+Frage: Bringt es etwas, die Daten beider Sensoren zu fusionieren,
+statt nur einen zu benutzen?
+
+**Die fünf wichtigsten Erkenntnisse:**
+
+1. **Fusion ist beim bewegten Objekt nicht Luxus, sondern notwendig.**
+   Sensor os1 allein verfehlt das fahrende Auto fast komplett
+   (Trefferquote-Wert 0.02–0.09 von 1.0): Seine Boxen liegen
+   systematisch ~1.5 m daneben, weil er das Auto nur von einer Seite
+   sieht. Wichtig: Auch das beste Training ändert daran nichts — es
+   ist ein Sichtproblem, kein Trainingsproblem. Die Fusion beider
+   Sensoren löst es (0.90). Sie kostet doppelte Rechenzeit, bleibt
+   aber schnell genug für Live-Betrieb.
+
+2. **Die beste Trainingsverbesserung ist das "GT-Sampling"** (beim
+   Training zusätzliche Fahrrad-/Personen-Beispiele in die Szenen
+   hineinkopieren, weil Fahrräder 22× seltener sind als Autos). Es
+   verbessert Fahrrad- und Auto-Erkennung deutlich. Die Alternative
+   (Fahrrad-Aufnahmen einfach doppelt zeigen) bringt nichts —
+   auch das wurde getestet und gehört als Negativergebnis in die Arbeit.
+
+3. **Die Gesamtzahlen schmeicheln — die ehrliche Zahl ist die für
+   bewegte Objekte.** Der Testbereich steht voller geparkter Autos
+   (1548 von 1583), die das Netz aus dem Training kennt und trivial
+   wiedererkennt. Deshalb werten wir bewegte und stehende Objekte
+   getrennt aus und berichten die bewegten als Hauptergebnis.
+
+4. **Die verbleibenden Schwächen sind verstanden:** (a) Beim fahrenden
+   Auto stimmt die Boxgröße nicht ganz — das Netz schätzt das Auto ~1 m
+   zu kurz, weil es nur teilweise sichtbar ist und das Netz auf typische
+   (kleinere) Auto-Maße aus dem Vortraining zurückfällt. Position und
+   Ausrichtung stimmen dagegen fast perfekt. (b) Das Netz ist sich beim
+   bewegten Objekt weniger sicher (Konfidenz ~0.74 statt ~0.98) — für
+   den Praxiseinsatz braucht man deshalb klassenweise Schwellwerte oder
+   Tracking. (c) Vereinzelte "Geister-Fahrräder" an Stellen, wo im
+   Training oft Räder fuhren: Das Netz hat sich Orte gemerkt statt nur
+   Formen — eine Folge davon, dass alle Daten aus einer einzigen Szene
+   stammen.
+
+5. **Die Zahlen sind belastbar, weil vorher aufgeräumt wurde:** Drei
+   Datenfehler (abgeschnittener Boden, verschobene Boxhöhen,
+   inkonsistente Intensitäten) und ein Fehler in der Messmethode wurden
+   gefunden und behoben — vorher schien z. B. die Fahrrad-Erkennung
+   katastrophal (0.24), real lag sie bei 0.94. Trainings-/Test-Daten
+   sind sauber getrennt; die bekannten Einschränkungen (wenige
+   Zielobjekte, eine Szene, langsames Zielauto) sind dokumentiert.
+
+**Ein Satz:** Ein einzelner Infrastruktur-LiDAR erkennt die statische
+Szene fast perfekt, scheitert aber je nach Blickwinkel systematisch am
+bewegten Zielobjekt — die Fusion zweier Sensoren behebt genau das bei
+weiterhin echtzeitfähiger Verarbeitung.
+
 ## 1. Per-Klasse-AP (Gesamttest)
 
 ### merged (Fusion beider Sensoren)
