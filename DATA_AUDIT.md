@@ -371,9 +371,26 @@ ohne GT-Rad im Umkreis von 2 m. Untersuchung
      Möglicher Fix (Future Work): Unterboden-Punkte (z < −2) beim
      Konvertieren filtern oder pc_range-z-Minimum anheben; müsste als
      Ablation geprüft werden.
-  3. Rest: niedrig-konfidente Fehldetektionen an Klutter.
+  3. **Positions-Halluzinationen** (Frame-Forensik exp 1,
+     ts 1760002176837492193): bicycle-Pred (Score 0.31) über blankem
+     Boden — 286 Punkte in der Box, aber alle in einer 2 cm flachen
+     Schicht (reiner Boden), Position nur **0.23 m** neben dem Weg der
+     Trainingsräder aus Experimenten 4–6 (gleiche Szene). Das Netz hat
+     Ort und Objekt nicht getrennt gelernt → direkte Folge der
+     Ein-Szenen-Datenbasis (zentrale Limitation; mit mehr Szenen nicht
+     zu erwarten). Im selben Frame: bicycle (0.53) + person (0.38)
+     parallel zum car (0.65) auf dem dünn abgetasteten **Heck des
+     dynamischen Autos** — klassenübergreifende Mehrfach-Hypothesen,
+     die das klassenweise NMS nicht unterdrückt (Abhilfe:
+     cross-class NMS oder Regel "Box vollständig in höher gescorter
+     Box anderer Klasse → verwerfen").
 - Scores der FPs liegen bei 0.3–0.85 (meist < 0.6) — im Viewer mit
   `+` auf 0.6 filterbar; in der AP ranken sie unter den meisten TPs.
+- **Gegenmaßnahmen-Einordnung:** Nachlabeln hilft nur bei Kategorie 1
+  (falls echte Räder); gegen Kategorie 2 Unterboden-Filter (z < −2);
+  gegen Kategorie 3 helfen nur mehr Szenen-Diversität (hier nicht
+  verfügbar), eine Statik-/Hintergrundkarte des fest installierten
+  Sensors oder klassenweise Betriebspunkte (bicycle ≥ ~0.55).
 
 ## Anhang: Wie die Metrik zu lesen ist — IoU-Schwelle vs. Score
 
