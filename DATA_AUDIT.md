@@ -363,3 +363,44 @@ ohne GT-Rad im Umkreis von 2 m. Untersuchung
   3. Rest: niedrig-konfidente Fehldetektionen an Klutter.
 - Scores der FPs liegen bei 0.3–0.85 (meist < 0.6) — im Viewer mit
   `+` auf 0.6 filterbar; in der AP ranken sie unter den meisten TPs.
+
+## Anhang: Wie die Metrik zu lesen ist — IoU-Schwelle vs. Score
+
+Zwei Schwellen, die man nicht verwechseln darf:
+
+**1. IoU-Schwelle (die Zahl in AP30/40/50/60).** IoU = Intersection
+over Union: Überlappungsvolumen der Prediction- und GT-Box geteilt
+durch das Volumen ihrer Vereinigung (1.0 = deckungsgleich, 0 = keine
+Berührung; bei uns 3D-Volumen rotierter Quader). Die Zahl im AP-Namen
+ist die Mindest-IoU, ab der eine Prediction als Treffer zählt:
+- **AP30** ≈ "Objekt ungefähr gefunden?" (Detektionsfähigkeit)
+- **AP60** ≈ "Sitzt die Box auch präzise?" (Lokalisierungsschärfe)
+Diagnostisch: AP30 hoch + AP60 niedrig = Objekt wird gefunden, aber
+Box passt nicht (Beispiel dynamisches Auto, §10: Pred zu klein →
+IoU-Deckel ~0.62). AP über alle Schwellen konstant = reines
+Recall-/Ranking-Problem, kein Lokalisierungsproblem.
+
+**2. Score (Konfidenz, 0–1).** Ausgabe des Klassifikationskopfes pro
+Box: wie sicher das Netz ist, dass dort ein Objekt dieser Klasse ist.
+Der Prediction-Viewer filtert damit nur die *Anzeige* (`+`/`−`).
+**In die AP geht keine feste Score-Schwelle ein** — der Score dient
+als Ranking:
+1. Alle Predictions des Testsplits nach Score absteigend sortieren.
+2. Liste von oben abarbeiten; je Prediction: Treffer (IoU ≥ Schwelle
+   mit noch nicht vergebenem GT) oder False Positive.
+3. An jeder Listenposition ergibt sich Precision (Anteil Richtige am
+   bisher Gemeldeten) und Recall (Anteil gefundener GT-Objekte).
+4. AP = über 11 Recall-Stufen gemittelte Precision (Fläche unter der
+   Precision-Recall-Kurve, AP11-Interpolation).
+
+Die AP bewertet damit implizit *alle* Betriebspunkte gleichzeitig und
+misst auch die Score-Qualität: Fehldetektionen mit niedrigem Score
+(z. B. die Geisterboxen aus §11, Score 0.3–0.6, echte Treffer ~0.9+)
+stehen hinten im Ranking und kosten kaum AP; dieselben Fehler mit
+Score 0.9 würden die AP deutlich drücken. Für einen realen Einsatz
+wählt man dagegen einen festen Betriebspunkt (Score-Schwelle) als
+Kompromiss aus Falschalarmrate und Empfindlichkeit.
+
+**mAP** in unseren Tabellen = Mittel über die vier IoU-Schwellen
+(0.3/0.4/0.5/0.6) und die drei Klassen. Matching frame-lokal, Pooling
+über den ganzen Testsplit (datensatzweite AP, §3.5).
