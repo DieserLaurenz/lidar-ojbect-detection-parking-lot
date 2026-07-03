@@ -324,6 +324,17 @@ Geometrische Konsequenz: Selbst bei perfekter Zentrierung ergibt
 4.0×1.55 in 4.95×1.95 nur IoU ≈ 0.62 — die AP60-Schwäche ist fast
 vollständig der Boxgröße geschuldet. Das Netz regressiert bei nur
 ~60 % sichtbarer Fahrzeuglänge auf sein KITTI-Größen-Prior.
+
+**Score-Verteilung (Betriebspunkt-Relevanz):** Bester car-Pred-Score
+am dynamischen Auto median 0.74 (2/35 Frames < 0.45, 10/35 < 0.6,
+0 Misses); statische Autos median 0.98 (0.3 % < 0.45). Die Scores der
+bicycle-Geisterboxen (§11: 0.3–0.6) **überlappen** mit denen des
+dynamischen Autos — eine globale Score-Schwelle, die alle Geisterboxen
+entfernt und das Zielauto in jedem Frame behält, existiert nicht.
+Praxis-Konsequenz: Schwellen pro Klasse wählen (bicycle streng, car
+locker; im Prediction-Viewer per Tasten 1/2/3 + `+`/`−`) bzw. im
+Realeinsatz zeitliche Verfolgung (Tracking) über die schwachen
+Einzelframes hinweg.
 **Offener Prüfpunkt:** die realen Maße des Zielfahrzeugs nachmessen —
 GT 4.95×1.95 m ist groß; wäre die GT-Box großzügig gelabelt, wäre ein
 Teil der "Schwäche" ein Label-Artefakt.

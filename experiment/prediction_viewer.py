@@ -21,8 +21,14 @@ Tasten:
     P / Pfeil links    voriger Frame
     G                  Ground-Truth-Boxen ein/aus
     B                  Predictions ein/aus
-    +/-                Score-Schwelle +-0.05
+    +/-                Score-Schwelle +-0.05 (fuer gewaehlte Klasse)
+    1 / 2 / 3          +/- wirkt nur auf person / bicycle / car
+    0                  +/- wirkt auf alle Klassen (Standard)
     Q / Esc            beenden
+
+Tipp: Die Geisterraeder (Score 0.3-0.6) und das schwach gescorte
+dynamische Auto ueberlappen im Score — eine globale Schwelle entfernt
+beide. Stattdessen: Taste 2, dann zweimal +  (nur bicycle auf 0.4+).
 
 Farben:  Prediction: person=blau, bicycle=orange, car=rot
          Ground Truth: gruen (statisch: grau)
@@ -89,7 +95,8 @@ def load_gt(exp_dir, view, ts):
 class Viewer:
     def __init__(self, exp_id, view, score_thr, show_gt):
         self.view = view
-        self.score_thr = score_thr
+        self.thr = {0: score_thr, 1: score_thr, 2: score_thr}
+        self.thr_class = None  # None = +/- wirkt auf alle Klassen
         self.show_gt = show_gt
         self.show_pred = True
         self.exp_dir = find_exp_dir(exp_id)
@@ -119,7 +126,11 @@ class Viewer:
                         (ord("P"), self.prev), (263, self.prev),
                         (ord("G"), self.toggle_gt), (ord("B"), self.toggle_pred),
                         (ord("+"), self.thr_up), (ord("-"), self.thr_down),
-                        (61, self.thr_up), (45, self.thr_down)]:
+                        (61, self.thr_up), (45, self.thr_down),
+                        (ord("0"), lambda _: self.set_thr_class(None)),
+                        (ord("1"), lambda _: self.set_thr_class(0)),
+                        (ord("2"), lambda _: self.set_thr_class(1)),
+                        (ord("3"), lambda _: self.set_thr_class(2))]:
             self.vis.register_key_callback(key, fn)
         self.geoms = []
         self.load_frame(first=True)
@@ -141,13 +152,23 @@ class Viewer:
         self.show_pred = not self.show_pred
         self.load_frame(); return True
 
-    def thr_up(self, _=None):
-        self.score_thr = min(0.95, self.score_thr + 0.05)
+    def set_thr_class(self, c_):
+        self.thr_class = c_
+        name = "alle Klassen" if c_ is None else CLASSES[c_]
+        print(f"+/- wirkt jetzt auf: {name}")
+        return False
+
+    def _shift_thr(self, delta):
+        keys = [self.thr_class] if self.thr_class is not None else [0, 1, 2]
+        for k in keys:
+            self.thr[k] = min(0.95, max(0.0, self.thr[k] + delta))
         self.load_frame(); return True
 
+    def thr_up(self, _=None):
+        return self._shift_thr(+0.05)
+
     def thr_down(self, _=None):
-        self.score_thr = max(0.0, self.score_thr - 0.05)
-        self.load_frame(); return True
+        return self._shift_thr(-0.05)
 
     # --------------------------------------------------------------------
     def load_frame(self, first=False):
@@ -178,7 +199,7 @@ class Viewer:
         counts = {c: 0 for c in CLASSES}
         if self.show_pred:
             for b, lb, sc in zip(fr["boxes"], fr["labels"], fr["scores"]):
-                if sc < self.score_thr:
+                if sc < self.thr[int(lb)]:
                     continue
                 ls = obb_lineset(kitti_to_raw(b), PRED_COLORS[int(lb)])
                 self.vis.add_geometry(ls, reset_bounding_box=False)
@@ -198,8 +219,9 @@ class Viewer:
         if cam is not None:
             self.vis.get_view_control().convert_from_pinhole_camera_parameters(cam)
         cnt = ", ".join(f"{k}:{v}" for k, v in counts.items() if v)
+        thr_s = "/".join(f"{self.thr[i]:.2f}" for i in range(3))
         print(f"[{self.idx + 1}/{len(self.frames)}] ts={ts}  "
-              f"preds>={self.score_thr:.2f}: {n_pred} ({cnt})  GT: {n_gt}"
+              f"preds (thr p/b/c {thr_s}): {n_pred} ({cnt})  GT: {n_gt}"
               f"{'' if self.show_gt else ' (aus)'}")
 
     def run(self):
