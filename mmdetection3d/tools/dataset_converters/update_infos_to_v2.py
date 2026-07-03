@@ -1201,7 +1201,10 @@ def update_exp_infos(pkl_path: str, out_dir: str) -> None:
     print(f'Reading from input file: {pkl_path}.')
     data_list = mmengine.load(pkl_path)
 
-    METAINFO = lumpi.LUMPIDataset.METAINFO
+    if '_kitti_' in Path(pkl_path).name:
+        METAINFO = dict(classes=('person', 'bicycle', 'car'))
+    else:
+        METAINFO = lumpi.LUMPIDataset.METAINFO
     print('Start updating:')
     converted_list = []
     ignore_class_name = set()

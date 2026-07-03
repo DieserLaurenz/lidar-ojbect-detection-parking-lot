@@ -1,30 +1,16 @@
 import numpy as np
 import glob
 import json
-import os
 import shutil
-from pypcd4 import PointCloud as _PCD
+import pypcd4
 from os import path as osp
 
 from mmengine import print_log, dump
 from mmengine.utils import track_parallel_progress
-from mmdet3d.datasets import lumpi
-
-
-IGNORE_FRAME_KEY = "ignore_frame"
-INVALID_FRAME_KEY = "invalid_frame"
-
-
-def is_invalid_frame_annotation(data: object) -> bool:
-    if isinstance(data, dict):
-        return bool(data.get(INVALID_FRAME_KEY, False) or data.get(IGNORE_FRAME_KEY, False))
-    if isinstance(data, list):
-        return any(
-            bool(item.get(INVALID_FRAME_KEY, False) or item.get(IGNORE_FRAME_KEY, False))
-            for item in data
-            if isinstance(item, dict)
-        )
-    return False
+# Hardcoded to avoid mmcv._ext CUDA dependency
+_EXP_DEFAULT_CLASSES = [
+    "person", "car", "bicycle", "motorcycle", "bus", "truck", "unknown",
+]
 
 
 def convert_labels(root_path: str, out_dir: str, max_workers: int) -> None:
@@ -56,16 +42,6 @@ def convert_pcd(root_path: str, out_dir: str, max_workers: int) -> None:
     print_log(f"Converting PCD to {out_dir}/points")
     pcd_conv = ExpPCDParser(root_path, out_dir, max_workers=max_workers)
     pcd_conv.convert()
-
-
-def _label_type_number(type_name: str):
-    if type_name.startswith("merged_labels"):
-        return 2
-    if type_name.startswith("os0_labels"):
-        return 0
-    if type_name.startswith("os1_labels"):
-        return 1
-    return None
 
 
 def create_instance_dict(
@@ -110,7 +86,6 @@ def create_instance_dict(
 def load_and_parse_labels(
         sample_list: list,
         root_path: str,
-        labels_subdir: str = "labels",
 ) -> list:
     """
     Load and parse converted annotations. (Expected format: json)
@@ -126,7 +101,7 @@ def load_and_parse_labels(
     for elem in sample_list:
         try:
             file_path = osp.join(
-                root_path, labels_subdir, f"{elem}.json")
+                root_path, "labels", f"{elem}.json")
             with open(file_path, "r") as f:
                 instance = create_instance_dict(elem, json.load(f))
 
@@ -140,55 +115,117 @@ def load_and_parse_labels(
     return data_list
 
 
-def create_test_split(data_path: str,
-                      info_os0_path: str,
-                      info_os1_path: str,
-                      info_merged_path: str,
-                      target_dataset: str = None,
-                      ) -> None:
-    """
-    Creates test split based on sensor configurations:
-        - merged
-        - sensor OS0
-        - sensor OS1
+def _split_by_bags(
+    samples: list,
+    val_tail_ratio: float = 0.2,
+) -> tuple:
+    """Split by fixed bag assignment with per-bag internal validation.
 
-    and dumps annotation into given path as pkl.
+    Bag assignment (from page 14 of Zwischenvortrag):
+        Bags 1,2,4,5,7,8  -> train (with last val_tail_ratio -> val)
+        Bags 3,6,9         -> test  (all frames)
+
+    Within each training bag, frames are sorted by frame_id and the
+    last ``val_tail_ratio`` fraction is used for validation, while the
+    first ``1 - val_tail_ratio`` fraction is used for training.
+
+    The sample_id follows the pattern ``{bag}{sensor}0000{frame:06d}``
+    where ``bag`` is the first character of sample_id.
 
     Args:
-        data_path (str):        root dir of raw dataset.
-                                (Expects subdir labels with
-                                frames with frame id as filename)
-        info_os0_path (str):    output path for os0 split annotation
-        info_os1_path (str):    output path for os1 split annotation
-        info_merged_path (str): output path for merged split annotation
+        samples (list):      list of sample dicts, each must have
+                             a ``sample_id`` key
+        val_tail_ratio (float): fraction of each train bag's tail
+                                used for validation (Default: 0.2)
+
+    Returns:
+        tuple: (train_samples, val_samples, test_samples)
     """
-    labels_subdir = "labels" if target_dataset is None else f"labels_{target_dataset}"
+    TRAIN_BAGS = {'1', '2', '4', '5', '7', '8'}
+    TEST_BAGS = {'3', '6', '9'}
 
-    os0_label_glob = glob.glob(f"{data_path}/{labels_subdir}/[0-9]0*.json")
-    os1_label_glob = glob.glob(f"{data_path}/{labels_subdir}/[0-9]1*.json")
-    merged_label_glob = glob.glob(f"{data_path}/{labels_subdir}/[0-9]2*.json")
+    # Group by bag (first character of sample_id)
+    bag_samples: dict[str, list] = {}
+    for s in samples:
+        bag = s['sample_id'][0]
+        bag_samples.setdefault(bag, []).append(s)
 
-    merged_samples = load_and_parse_labels(
-        [osp.basename(f).split(".")[0] for f in merged_label_glob],
-        data_path,
-        labels_subdir=labels_subdir,
-    )
+    # Sort each bag by frame_id (last 6 chars of sample_id)
+    for bag in bag_samples:
+        bag_samples[bag].sort(key=lambda s: int(s['sample_id'][-6:]))
 
-    os0_samples = load_and_parse_labels(
-        [osp.basename(f).split(".")[0] for f in os0_label_glob],
-        data_path,
-        labels_subdir=labels_subdir,
-    )
+    train, val, test = [], [], []
+    for bag, items in bag_samples.items():
+        if bag in TRAIN_BAGS:
+            split_at = int(len(items) * (1.0 - val_tail_ratio))
+            train.extend(items[:split_at])
+            val.extend(items[split_at:])
+        elif bag in TEST_BAGS:
+            test.extend(items)
+        else:
+            print_log(
+                f"WARN: unknown bag '{bag}' (sample_id={items[0]['sample_id']}), "
+                f"assigning to test"
+            )
+            test.extend(items)
 
-    os1_samples = load_and_parse_labels(
-        [osp.basename(f).split(".")[0] for f in os1_label_glob],
-        data_path,
-        labels_subdir=labels_subdir,
-    )
+    return train, val, test
 
-    dump(merged_samples, info_merged_path)
-    dump(os0_samples, info_os0_path)
-    dump(os1_samples, info_os1_path)
+
+def create_train_val_test_split(
+    data_path: str,
+    out_dir: str,
+    info_prefix: str,
+    target_dataset: str,
+    train_ratio: float = 0.7,
+    val_ratio: float = 0.15,
+    seed: int = 42
+) -> None:
+    """Creates train/val/test splits by fixed bag assignment.
+
+    Uses ``_split_by_bags`` to assign samples based on which
+    experiment bag they originate from, ensuring no cross-bag
+    leakage between train/val/test.
+
+    Output files:
+        {out_dir}/{info_prefix}_{target_dataset}_infos_{sensor}_{split}.pkl
+        where sensor in {merged, os0, os1} and split in {train, val, test}
+
+    Args:
+        data_path (str):      root dir containing ``labels/`` subdir
+        out_dir (str):        output directory for pkl files
+        info_prefix (str):    prefix for annotation file names
+        target_dataset (str): target dataset name (lumpi/kitti/osdar)
+        train_ratio (float):  unused – kept for API compatibility
+        val_ratio (float):    unused – kept for API compatibility
+        seed (int):           unused – kept for API compatibility
+    """
+    for sensor, glob_pattern in [
+        ("os0",    osp.join(data_path, "labels", "[0-9]0*.json")),
+        ("os1",    osp.join(data_path, "labels", "[0-9]1*.json")),
+        ("merged", osp.join(data_path, "labels", "[0-9]2*.json")),
+    ]:
+        label_files = glob.glob(glob_pattern)
+        samples = load_and_parse_labels(
+            [osp.basename(f).split(".")[0] for f in label_files],
+            data_path,
+        )
+
+        train_samples, val_samples, test_samples = _split_by_bags(samples)
+
+        for split_name, split_samples in [
+            ("train", train_samples),
+            ("val",   val_samples),
+            ("test",  test_samples),
+        ]:
+            pkl_path = osp.join(
+                out_dir,
+                f"{info_prefix}_{target_dataset}_infos_{sensor}_{split_name}.pkl"
+            )
+            print_log(
+                f"Dumping {len(split_samples)} samples to {pkl_path}"
+            )
+            dump(split_samples, pkl_path)
 
 
 class ExpLabelConverter():
@@ -217,7 +254,7 @@ class ExpLabelConverter():
             output_dir: str,
             max_workers: int = 8,
             chunk_size: int = 1000,
-            classes: dict = lumpi.LUMPIDataset.METAINFO['classes'],
+            classes: dict = _EXP_DEFAULT_CLASSES,
     ):
         self.dataset_path = dataset_path
         self.output_dir = output_dir
@@ -248,26 +285,39 @@ class ExpLabelConverter():
             - sensor OS0
             - sensor OS1
 
+        Prefers manually corrected labels from `*_labels_manual` directories
+        over auto-generated `*_labels` directories. If a manual directory
+        exists, its contents are used instead of the auto-generated ones.
+
         Args:
             measurement (str):  subdir name of current experiment
         """
         def get_label_dir(label_type: str) -> str:
-            candidates = [
-                f"{label_type}_labels_manual_correct",
-                f"{label_type}_labels_manual_static",
-                f"{label_type}_labels_manual",
-                f"{label_type}_labels",
-            ]
-            for dirname in candidates:
-                path = osp.join(measurement, dirname)
-                files = glob.glob(osp.join(path, "*.json"))
-                if files:
+            """Get the preferred label directory for a given label type.
+            
+            Prefers `*_labels_manual` over `*_labels`. Falls back to `*_labels`
+            if no manual directory exists.
+            
+            Args:
+                label_type (str): One of "merged", "os0", "os1"
+                
+            Returns:
+                str: Path to the preferred label directory
+            """
+            manual_dir = osp.join(measurement, f"{label_type}_labels_manual")
+            auto_dir = osp.join(measurement, f"{label_type}_labels")
+            
+            if osp.isdir(manual_dir):
+                manual_files = glob.glob(osp.join(manual_dir, "*.json"))
+                if manual_files:
                     print_log(
-                        f"Using labels: {path} ({len(files)} files)")
-                    return path
-            fallback = osp.join(measurement, f"{label_type}_labels")
-            print_log(f"Using labels: {fallback} (no files found yet)")
-            return fallback
+                        f"Using manually corrected labels: {manual_dir} "
+                        f"({len(manual_files)} files)"
+                    )
+                    return manual_dir
+            
+            print_log(f"Using auto-generated labels: {auto_dir}")
+            return auto_dir
 
         merged = glob.glob(osp.join(get_label_dir("merged"), "*.json"))
         os0 = glob.glob(osp.join(get_label_dir("os0"), "*.json"))
@@ -291,22 +341,7 @@ class ExpLabelConverter():
         Args:
             file (str):     path to file
         """
-        type_name = osp.basename(osp.dirname(file))
-        type_number = _label_type_number(type_name)
-        if type_number is not None:
-            measurement_number = osp.basename(osp.dirname(osp.dirname(file)))[0]
-            frame_id = int(osp.basename(file).split(".")[0])
-            file_name = f"{measurement_number}{type_number}0000{frame_id:06d}"
-            out = osp.join(self.output_dir, "labels", f"{file_name}.json")
         data = self.load_label_file(file)
-        if is_invalid_frame_annotation(data):
-            if type_number is not None and osp.exists(out):
-                print(f"Removing converted label for invalid frame: {out}")
-                os.remove(out)
-            print(f"Skipping invalid frame label: {file}")
-            return
-        if type_number is not None and osp.exists(out):
-            return
         instances = self.convert_to_instance(data, file)
         self.store_to_file(instances, file)
 
@@ -393,8 +428,14 @@ class ExpLabelConverter():
         """
         for frame_id, instances in instances_by_frame.items():
             type_name = osp.basename(osp.dirname(file))
-            type_number = _label_type_number(type_name)
-            if type_number is None:
+            # Handle both *labels and *labels_manual directories
+            if type_name.startswith("merged_labels"):
+                type_number = 2
+            elif type_name.startswith("os0_labels"):
+                type_number = 0
+            elif type_name.startswith("os1_labels"):
+                type_number = 1
+            else:
                 raise ValueError(
                     f"Failed to extract type from {file}, "
                     f"type_name={type_name}. Expected directory name "
@@ -484,26 +525,11 @@ class ExpPCDParser:
         Args:
             file (str):     path to file
         """
-        if self._output_exists(file, "points", ".bin"):
-            return
         data = self.load_pcd_file(file)
         points = self.convert_pcd(data, file)
         self.store_to_file(points, file)
 
-    def _output_exists(self, file: str, folder: str, ext: str) -> bool:
-        type_name = osp.basename(osp.dirname(file))
-        if type_name == "merged_pcd":
-            type_number = 2
-        elif type_name.startswith("os"):
-            type_number = int(type_name[2])
-        else:
-            return False
-        measurement_number = osp.basename(osp.dirname(osp.dirname(file)))[0]
-        frame_id = int(osp.basename(file).split(".")[0])
-        file_name = f"{measurement_number}{type_number}0000{frame_id:06d}"
-        return osp.exists(osp.join(self.output_dir, folder, f"{file_name}{ext}"))
-
-    def load_pcd_file(self, file: str) -> _PCD:
+    def load_pcd_file(self, file: str) -> pypcd4.PointCloud:
         """
         Wrapper to load pointcloud from file.
 
@@ -513,23 +539,22 @@ class ExpPCDParser:
         Returns:
             pypcd PointCloud
         """
-        pcd_data = _PCD.from_path(file)
+        pcd_data = pypcd4.PointCloud.from_path(file)
         return pcd_data
 
-    def convert_pcd(self, pcd_data: _PCD, file: str) -> np.ndarray:
+    def convert_pcd(self, pcd_data: pypcd4.PointCloud, file: str) -> np.ndarray:
         """
         Converts point cloud into np.ndarray for binary storing.
         Uses dimension [x,y,z,intensity]
 
         Args:
-            pcd_data (_PCD):        point cloud
+            pcd_data (pypcd.PointCloud):        point cloud
             file (str):                         original file name
 
         Returns:
             np.ndarray with four dimensions
         """
-        n_pts = len(pcd_data.pc_data)
-        points = np.zeros([n_pts, 4], dtype=np.float32)
+        points = np.zeros([len(pcd_data.pc_data), 4], dtype=np.float32)
 
         x = pcd_data.pc_data['x'].copy()
         y = pcd_data.pc_data['y'].copy()

@@ -13,7 +13,15 @@ R = np.array([[c, -s, 0],
               [s,  c, 0],
               [0,  0, 1]], dtype=np.float32)
 
-T = np.array([30, 0.0, -3.3], dtype=np.float32)
+# T_z places the measured ground plane (z ~= -0.14 in the experiment frame)
+# at z ~= -1.74, matching KITTI's sensor geometry so that the pretrained
+# checkpoint's anchors (z = -0.6 / -1.78) and the point_cloud_range
+# z = [-3, 1] cover ground and objects without clipping.
+T = np.array([30, 0.0, -1.6], dtype=np.float32)
+
+# Ouster signal intensities span roughly 0..5800 per frame; a fixed global
+# scale keeps intensity comparable across frames (per-frame max varies 2x).
+INTENSITY_SCALE = 5000.0
 
 CLASS_MAP_LUMPI_TO_KITTI = {
     0: 0,  # person - Pedestrian
@@ -58,11 +66,9 @@ def _process_file(
     pts[:, :3] += T
 
     intensities = pts[:, 3]
-    intensities[~np.isfinite(intensities)] = 1.0
-    pts[:, 3] = (
-        (intensities + np.min(intensities)) * intensity_norm_max /
-        np.max(intensities)
-    )
+    intensities[~np.isfinite(intensities)] = 0.0
+    pts[:, 3] = np.clip(
+        intensities / INTENSITY_SCALE, 0.0, intensity_norm_max)
 
     out_path = os.path.join(output_dir, fname)
     pts.astype(np.float32).tofile(out_path)
@@ -131,6 +137,10 @@ def convert_labels(input_dir: str, output_dir: str) -> None:
             for instance in label["instances"]:
                 bbox = np.asarray(instance["bbox_3d"], dtype=np.float32)
                 bbox[:3] = R @ bbox[:3] + T
+                # Source labels store z as the box gravity center (Open3D
+                # OrientedBoundingBox convention of the manual editor);
+                # mmdet3d's LiDARInstance3DBoxes expects the bottom center.
+                bbox[2] -= bbox[5] / 2.0
                 bbox[6] += THETA
                 # Normalize heading to [-pi, pi]
                 bbox[6] = (bbox[6] + np.pi) % (2*np.pi) - np.pi
