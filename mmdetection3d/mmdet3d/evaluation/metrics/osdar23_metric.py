@@ -34,7 +34,7 @@ class OSDaR23Metric(BaseMetric):
                  collect_device: Optional[str] = 'gpu',
                  score_threshold: Optional[float] = 0.2,
                  iou_thresholds: Optional[List[float]] = [0.3, 0.4, 0.5, 0.6],
-                 max_workers: Optional[int] = 8,
+                 max_workers: Optional[int] = 1,
                  backend_args: Optional[dict] = None,
                  use_kitti: Optional[bool] = False,
                  ) -> None:
@@ -198,7 +198,7 @@ class OSDaR23Metric(BaseMetric):
             ap_dict = self.osdar_evaluate(
                 self.results,
                 self.data_infos,
-                metric=metric,
+                filter_by_score=True,
                 logger=logger,
             )
             for result in ap_dict:
@@ -342,6 +342,13 @@ class OSDaR23Metric(BaseMetric):
             device=device
         )
 
+        # Boxes arrive in mmdet3d LiDAR convention (z = bottom center),
+        # but diff_iou_rotated_3d expects z at the gravity center.
+        pred_tensor = pred_tensor.clone()
+        gt_tensor = gt_tensor.clone()
+        pred_tensor[:, 2] += pred_tensor[:, 5] / 2.0
+        gt_tensor[:, 2] += gt_tensor[:, 5] / 2.0
+
         # Expand for pairwise comparison: (P, G, 7)
         pred_exp = pred_tensor.unsqueeze(1).expand(-1, gt_tensor.shape[0], -1)
         gt_exp = gt_tensor.unsqueeze(0).expand(pred_tensor.shape[0], -1, -1)
@@ -355,63 +362,30 @@ class OSDaR23Metric(BaseMetric):
             self,
             gt_annos: dict,
             pred_annos: dict,
+            iou_matrix: np.ndarray,
             threshold: float = 0.7,
-    ) -> tuple:
+    ) -> list:
         """
-        Matches GT and Preditions to given threshold creating a matrix.
+        Greedily matches predictions (ordered by descending score) to GT
+        at the given IoU threshold.
 
         Args:
-            gt_annos (dict):    Given grountruths to match
-            pred_annos (dict):  Given predictions to match
-            threshold (float):  Threshold for IoU to count as match.
+            gt_annos (dict):        Given grountruths to match
+            pred_annos (dict):     Given predictions to match
+            iou_matrix (ndarray):  Precomputed (P, G) IoU matrix
+            threshold (float):     Threshold for IoU to count as match.
                 (Default is 0.7)
 
         Returns:
-            Tuple of
-                - list of Precision values
-                - list of Recall values
+            List of TP flags (1/0), aligned with the prediction order
         """
         gt_matched = [False] * gt_annos['num_objs']
 
         tp = []
-        fp = []
-
-        if pred_annos['num_objs'] == 0 or gt_annos['num_objs'] == 0:
-            iou_matrix = torch.empty(
-                (pred_annos['num_objs'], gt_annos['num_objs'])
-            )
-        else:
-            MAX_RETRIES = 4
-            for i in range(MAX_RETRIES):
-                try:
-                    iou_matrix = self.compute_mmcv_iou(
-                        pred_annos['bboxes_3d'],
-                        gt_annos['bboxes_3d'],
-                    )
-                    break
-                except RuntimeError as e:
-                    if 'out of memory' in str(e):
-                        if i < MAX_RETRIES - 1:
-                            backoff_time = random.uniform(1, 5)
-                            print(
-                                f"[WARN] {i}/{MAX_RETRIES} CUDA Out-of-Memory "
-                                "- sleep and retry!"
-                            )
-                            torch.cuda.empty_cache()
-                            time.sleep(backoff_time)
-                            iou_matrix = self.compute_mmcv_iou(
-                                pred_annos['bboxes_3d'],
-                                gt_annos['bboxes_3d'],
-                            )
-                        else:
-                            print("[WARN] Out of Retries CUDA Out-of-Memory!")
-                            raise
-                    else:
-                        raise
 
         for pred_idx in range(pred_annos['num_objs']):
-            ious_for_pred = iou_matrix[pred_idx]
             if gt_annos['num_objs'] > 0:
+                ious_for_pred = iou_matrix[pred_idx]
                 max_iou = np.max(ious_for_pred)
                 best_gt_idx = np.argmax(ious_for_pred)
             else:
@@ -420,66 +394,84 @@ class OSDaR23Metric(BaseMetric):
 
             if max_iou >= threshold and not gt_matched[best_gt_idx]:
                 tp.append(1)
-                fp.append(0)
                 gt_matched[best_gt_idx] = True
             else:
                 tp.append(0)
-                fp.append(1)
 
-        tp_cum = np.cumsum(tp)
-        fp_cum = np.cumsum(fp)
-        fn = gt_matched.count(False)
+        return tp
 
-        max_tp = tp_cum[-1] if len(tp_cum) else gt_annos['num_objs']
+    def _compute_iou_with_retry(self, pred_bboxes, gt_bboxes) -> np.ndarray:
+        """IoU matrix with CUDA-OOM retry; empty matrix if either side is
+        empty."""
+        if len(pred_bboxes) == 0 or len(gt_bboxes) == 0:
+            return np.empty((len(pred_bboxes), len(gt_bboxes)))
+        MAX_RETRIES = 4
+        for i in range(MAX_RETRIES):
+            try:
+                return self.compute_mmcv_iou(pred_bboxes, gt_bboxes)
+            except RuntimeError as e:
+                if 'out of memory' in str(e) and i < MAX_RETRIES - 1:
+                    backoff_time = random.uniform(1, 5)
+                    print(
+                        f"[WARN] {i}/{MAX_RETRIES} CUDA Out-of-Memory "
+                        "- sleep and retry!"
+                    )
+                    torch.cuda.empty_cache()
+                    time.sleep(backoff_time)
+                else:
+                    raise
 
-        recalls = tp_cum / (max_tp + fn + 1e-8)
-        precisions = tp_cum / (tp_cum + fp_cum + 1e-8)
-
-        return ([], precisions, recalls)
-
-    def calculate_ap11(self, precisions: list, recalls: list) -> float:
+    def calculate_ap11(self, scores: list, tps: list, n_gt: int) -> float:
         """
-            Use AP11 interpolation and returns AP by calculating the
-            area under the precision/recall curve.
+            Dataset-level AP with 11-point interpolation: predictions of
+            one class, pooled over all frames, are ranked by score; the
+            precision/recall curve is integrated against the total GT
+            count of the split.
 
             Args:
-                precisions (list): List of precision values
-                recalls (list):    List of recall values
+                scores (list): Confidence of every prediction of the class
+                tps (list):    1 if the prediction matched a GT, else 0
+                n_gt (int):    Total number of GT instances of the class
 
             Returns:
                 ap (float): Metric value
         """
-        precisions = np.array(precisions)
-        recalls = np.array(recalls)
+        if n_gt == 0:
+            return 0.0
+        if len(scores) == 0:
+            return 0.0
+        order = np.argsort(-np.asarray(scores))
+        tp = np.asarray(tps, dtype=np.float64)[order]
+        tp_cum = np.cumsum(tp)
+        fp_cum = np.cumsum(1.0 - tp)
+        recalls = tp_cum / n_gt
+        precisions = tp_cum / np.maximum(tp_cum + fp_cum, 1e-9)
 
-        levels = np.linspace(0.0, 1.0, 11)
         ap = 0.0
+        for level in np.linspace(0.0, 1.0, 11):
+            mask = recalls >= level - 1e-9
+            ap += np.max(precisions[mask]) if np.any(mask) else 0.0
 
-        for level in levels:
-            ap += np.max(precisions[recalls > level]
-                         ) if np.any(recalls > level) else 0
-
-        ap /= len(levels)
-
-        return ap
+        return ap / 11.0
 
     def custom_osdar_eval(
             self,
             gt_annos: dict,
             pred_annos: dict,
-            threshold: float = 0.7,
+            thresholds: List[float],
     ) -> dict:
         """
-        Compute IoU for each class and calculate mAP.
+        Match predictions to GT per class for one frame and return the
+        raw match data (scores, TP flags, GT count) for every IoU
+        threshold, to be pooled dataset-wide before the AP is computed.
 
         Args:
-            gt_annos (dict):    Given groundtruths
-            pred_annos (dict):  Given predictions
-            threshold (float):  IoU threshold at which match is
-                valid (Default is 0.7)
+            gt_annos (dict):    Given groundtruths of one frame
+            pred_annos (dict):  Predictions on that frame
+            thresholds (list):  IoU thresholds to match at
 
         Returns:
-            ap_dict (dict):     Metric for given threshold
+            dict: {ap_name: {class_name: [(scores, tps, n_gt)]}}
         """
 
         ap_dict = {}
@@ -502,30 +494,37 @@ class OSDaR23Metric(BaseMetric):
             filtered_pred_annos['num_objs'] = len(
                 filtered_pred_annos['bboxes_3d'])
 
-            matches, precisions, recalls = self.match_gt_and_pred(
-                filtered_gt_annos,
-                filtered_pred_annos,
-                threshold=threshold,
+            # one IoU matrix per class and frame, shared by all thresholds
+            iou_matrix = self._compute_iou_with_retry(
+                filtered_pred_annos['bboxes_3d'],
+                filtered_gt_annos['bboxes_3d'],
             )
 
-            ap_dict[class_name] = self.calculate_ap11(precisions, recalls)
+            scores = list(filtered_pred_annos['scores_3d'])
+            for threshold in thresholds:
+                ap_name = f"AP{int(threshold * 100):02d}"
+                tps = self.match_gt_and_pred(
+                    filtered_gt_annos,
+                    filtered_pred_annos,
+                    iou_matrix,
+                    threshold=threshold,
+                )
+                ap_dict.setdefault(ap_name, {})[class_name] = [
+                    (scores, tps, filtered_gt_annos['num_objs'])
+                ]
 
         return ap_dict
 
-    def print_ap_dict(self, ap_dict: dict) -> None:
-        """Wrapper function to dict metric dict"""
+    def print_ap_dict(self, results: dict) -> None:
+        """Print the computed per-class AP values as a table"""
         ptable = PrettyTable()
         ap_names = [f"AP{int(ap * 100):02d}" for ap in self.iou_thresholds]
         ptable.field_names = ['Category'] + ap_names
-        if ap_names[0] not in ap_dict:
-            print("[ERROR] Cannot print ap_dict")
-            print(ap_dict)
-            return
-        for category in list(ap_dict[ap_names[0]].keys()):
+        for category in self.seen_classes:
             row = [category]
             for ap in ap_names:
-                values = ap_dict[ap].get(category, [])
-                row.append(round(np.mean(values), 3) if values else -1)
+                value = results.get(f"{ap}_{category}")
+                row.append(round(value, 3) if value is not None else -1)
             ptable.add_row(row)
 
         print(ptable)
@@ -550,39 +549,17 @@ class OSDaR23Metric(BaseMetric):
             dict with metrics
         """
         batch_time_start = time.time()
-        ap_dict = {}
 
         num_gt_annos = gt_annos_batch['num_objs']
         num_pred_annos = pred_annos_batch['num_objs']
 
         pred_gt_ratio = num_pred_annos / num_gt_annos if num_gt_annos else 0.0
 
-        for threshold in iou_thresholds:
-            if threshold < 1:
-                ap_name = f"AP{int(threshold * 100):02d}"
-            else:
-                ap_name = threshold
-                print("WARNING: Bad IoU Threshold!")
-            if ap_name not in ap_dict:
-                ap_dict[ap_name] = {}
-
-            result = self.custom_osdar_eval(
-                gt_annos_batch,
-                pred_annos_batch,
-                threshold=threshold,
-            )
-
-            for ap_class, ap in result.items():
-                if ap is None:
-                    print(
-                        f"[WARN] No AP for {ap_class}@{threshold}"
-                        f"{ap} {result}"
-                    )
-                    continue
-                if ap_class not in ap_dict[ap_name]:
-                    ap_dict[ap_name][ap_class] = [ap]
-                else:
-                    ap_dict[ap_name][ap_class].append(ap)
+        ap_dict = self.custom_osdar_eval(
+            gt_annos_batch,
+            pred_annos_batch,
+            thresholds=iou_thresholds,
+        )
 
         batch_time = time.time() - batch_time_start
         return {
@@ -634,16 +611,22 @@ class OSDaR23Metric(BaseMetric):
         all_ap_values = []
         results = {}
 
-        for ap_key, class_scores in ap_dict.items():
-            per_class_means = {}
-            for class_name, class_scores in class_scores.items():
-                mean_ap = np.mean(class_scores)
-                per_class_means[class_name] = mean_ap
-                results[f"{ap_key}_{class_name}"] = mean_ap
-                all_ap_values.append(mean_ap)
+        for ap_key, class_matches in ap_dict.items():
+            per_class_aps = {}
+            for class_name, frame_matches in class_matches.items():
+                # pool matches of all frames, then dataset-level AP
+                scores, tps = [], []
+                n_gt = 0
+                for frame_scores, frame_tps, frame_n_gt in frame_matches:
+                    scores.extend(frame_scores)
+                    tps.extend(frame_tps)
+                    n_gt += frame_n_gt
+                ap = self.calculate_ap11(scores, tps, n_gt)
+                per_class_aps[class_name] = ap
+                results[f"{ap_key}_{class_name}"] = ap
+                all_ap_values.append(ap)
 
-            ap_mean = np.mean(list(per_class_means.values()))
-            results[ap_key] = ap_mean
+            results[ap_key] = np.mean(list(per_class_aps.values()))
 
         results['mAP'] = np.mean(all_ap_values)
         results['pred_gt_ratio'] = (
@@ -752,7 +735,7 @@ class OSDaR23Metric(BaseMetric):
             results['filtered_pred_score'] = self.score_threshold
 
             if len(pred_annos):
-                self.print_ap_dict(ap_dict)
+                self.print_ap_dict(results)
                 print(f"map: {results['mAP']:0.3f}")
                 print(f"pred_gt_ratio: {results['pred_gt_ratio']:0.3f}")
                 print(f"score_mean: {results['score_mean']:0.3f}")
