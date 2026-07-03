@@ -1,342 +1,522 @@
 # Projektbericht: Multisensor-LiDAR-Objekterkennung an einer Kreuzung
 
-**Masterarbeit — Stand 2026-07-03.** Dieser Bericht beschreibt von
-Anfang bis Ende, was gemacht wurde, welche Probleme gefunden und
-behoben wurden, welche Ergebnisse herauskamen und was daraus folgt.
-Fachbegriffe werden bei der ersten Verwendung *kursiv* eingeführt und
-kurz erklärt. Detailbelege stehen in `DATA_AUDIT.md` (Audit + alle
-Analysen), `ABLATION_BICYCLE.md` (Vergleichsexperimente) und
-`RESULTS.md` (Ergebnisreport mit Tabellen und Laufzeiten).
+**Masterarbeit — Stand: 3. Juli 2026.**
+
+Dieser Bericht erzählt von Anfang bis Ende, was in diesem Projekt
+gemacht wurde: wie die Daten entstanden sind, welche Fehler auf dem Weg
+gefunden und behoben wurden, welche Ergebnisse am Ende herauskamen und
+welche Schlüsse man daraus ziehen kann. Fachbegriffe werden bei ihrer
+ersten Verwendung immer direkt erklärt, sodass der Bericht auch ohne
+Vorwissen verständlich ist. Wer tiefer einsteigen möchte, findet alle
+Detailbelege in drei weiteren Dokumenten: `DATA_AUDIT.md` enthält die
+technische Prüfung der Daten und alle Detailanalysen,
+`ABLATION_BICYCLE.md` beschreibt die Vergleichsexperimente, und
+`RESULTS.md` ist der kompakte Ergebnisreport mit allen Tabellen.
 
 ---
 
-## 1. Ausgangslage und Ziel
+## 1. Worum geht es in diesem Projekt?
 
-Zwei fest montierte **LiDAR-Sensoren** (Ouster; *LiDAR* = Laserscanner,
-der die Umgebung mit Lichtpulsen abtastet und daraus eine *Punktwolke*
-erzeugt — Millionen von 3D-Messpunkten pro Sekunde) beobachten eine
-Kreuzung aus verschiedenen Richtungen. Ein neuronales Netz soll in
-diesen Punktwolken **Personen, Fahrräder und Autos** erkennen und mit
-*3D-Bounding-Boxes* markieren (Quader, die Position, Größe und
-Ausrichtung eines Objekts beschreiben).
+An einer Kreuzung wurden zwei LiDAR-Sensoren fest installiert. Ein
+LiDAR ist ein Laserscanner: Er sendet Lichtpulse aus, misst, wie lange
+das Licht bis zu einem Hindernis und zurück braucht, und berechnet
+daraus für jeden Puls einen Messpunkt im Raum. Aus Millionen solcher
+Messpunkte pro Sekunde entsteht eine sogenannte Punktwolke — man kann
+sie sich wie ein dreidimensionales Foto der Umgebung vorstellen, das
+nur aus einzelnen Punkten besteht.
 
-Die Leitfrage der Arbeit: **Bringt die Fusion beider Sensoren einen
-messbaren Vorteil gegenüber einem Einzelsensor?** Dafür werden drei
-"Ansichten" (*Views*) verglichen:
+In diesen Punktwolken soll ein neuronales Netz automatisch Personen,
+Fahrräder und Autos erkennen. Das Erkennungsergebnis ist für jedes
+gefundene Objekt eine sogenannte Bounding Box: ein gedachter Quader,
+der beschreibt, wo das Objekt steht, wie groß es ist und in welche
+Richtung es zeigt.
 
-- **os0** — nur Sensor 0
-- **os1** — nur Sensor 1
-- **merged** — beide Punktwolken zu einer fusioniert
+Die zentrale Frage der Arbeit lautet: **Lohnt es sich, die Daten beider
+Sensoren zu kombinieren, oder reicht ein einzelner Sensor aus?** Um das
+zu beantworten, wurden drei Varianten verglichen. Die Variante "os0"
+verwendet nur den ersten Sensor, die Variante "os1" nur den zweiten
+Sensor, und die Variante "merged" verwendet die zusammengeführten
+Punktwolken beider Sensoren.
 
-## 2. Datenerhebung
+## 2. Wie sind die Daten entstanden?
 
-Am 09.10.2025 wurden **9 Experimente** aufgenommen: je dreimal fuhr/
-ging ein bewegtes *Zielobjekt* durch die Szene — ein **Auto**
-(Experimente 1–3), ein **Fahrrad** (4–6), eine **Person** (7–9).
-Zusätzlich stehen in der Szene dauerhaft geparkte Autos und weitere
-statische Objekte. Insgesamt entstanden 3327 Frames (Aufnahmen) pro
-View bei 10 Hz Aufnahmerate (10 Aufnahmen pro Sekunde).
+Am 9. Oktober 2025 wurden neun Experimente aufgenommen. In jedem
+Experiment bewegte sich genau ein bekanntes Zielobjekt durch die
+Kreuzung: In den Experimenten 1 bis 3 fuhr ein Auto durch die Szene,
+in den Experimenten 4 bis 6 ein Fahrrad, und in den Experimenten 7 bis
+9 ging eine Person. Zusätzlich standen während der gesamten Aufnahmen
+geparkte Autos und andere unbewegliche Objekte in der Szene.
 
-## 3. Datenaufbereitung: Merge der beiden Sensoren
+Die Sensoren nehmen zehnmal pro Sekunde eine vollständige Punktwolke
+auf. Insgesamt entstanden so 3327 Aufnahmen (im Folgenden "Frames"
+genannt) pro Sensorvariante.
 
-Jeder Sensor liefert seine Punktwolke im eigenen Koordinatensystem
-(jeder hält sich selbst für den Nullpunkt). Der **Merge** legt beide
-passgenau übereinander (`experiment/pcd_merge.py`):
+## 3. Wie werden die beiden Sensoren zu einem Bild kombiniert?
 
-1. Beide Punktwolken laden, Messrauschen entfernen (*statistischer
-   Ausreißerfilter*: Punkte, die untypisch weit von ihren Nachbarn
-   entfernt liegen, werden verworfen)
-2. Grobe Ausrichtung mit einer vorab manuell bestimmten
-   Transformation (*Extrinsik* = Position/Drehung der Sensoren
-   zueinander, hier in Blender kalibriert)
-3. Feinausrichtung per **ICP** (*Iterative Closest Point* — ein
-   Algorithmus, der zwei Punktwolken schrittweise millimetergenau
-   aufeinanderschiebt)
-4. Punkte aneinanderhängen → merged-Punktwolke
+Jeder Sensor misst die Welt aus seiner eigenen Perspektive und in
+seinem eigenen Koordinatensystem — das heißt, jeder Sensor betrachtet
+sich selbst als Nullpunkt. Bevor man beide Punktwolken kombinieren
+kann, muss man sie deshalb passgenau übereinanderlegen. Diesen Vorgang
+nennt man Merge (englisch für "zusammenführen"). Er läuft für jede
+Aufnahme in vier Schritten ab:
 
-Gemessene Dauer: **median 2.25 s pro Frame** (Offline-Verarbeitung;
-im Live-Betrieb würde man ICP nur einmal kalibrieren — dann kostet der
-Merge nur Millisekunden, siehe §11).
+1. Beide Punktwolken werden geladen, und offensichtliches Messrauschen
+   wird entfernt. Dafür sorgt ein statistischer Ausreißerfilter: Punkte,
+   die auffällig weit von allen ihren Nachbarpunkten entfernt liegen,
+   sind mit hoher Wahrscheinlichkeit Messfehler und werden verworfen.
+2. Eine der beiden Punktwolken wird grob in das Koordinatensystem der
+   anderen gedreht und verschoben. Die dafür nötige Drehung und
+   Verschiebung beschreibt, wie die beiden Sensoren zueinander stehen.
+   Man nennt sie die Extrinsik; sie wurde vorab einmalig von Hand
+   bestimmt.
+3. Anschließend übernimmt ein Algorithmus namens ICP (Iterative Closest
+   Point) die Feinarbeit: Er verschiebt die beiden Punktwolken in
+   kleinen Schritten so lange gegeneinander, bis sie bestmöglich
+   aufeinanderliegen.
+4. Zum Schluss werden die Punkte beider Wolken einfach zu einer
+   gemeinsamen Punktwolke aneinandergehängt.
 
-## 4. Labeling (Ground Truth)
+Dieser Vorgang dauerte in unserer Verarbeitung im Mittel etwa 2,3
+Sekunden pro Aufnahme. Das klingt langsam, ist aber kein grundsätzliches
+Problem des Ansatzes: Fast die gesamte Zeit entfällt auf den
+Rauschfilter und die ICP-Feinausrichtung. Da die Sensoren fest montiert
+sind und sich nicht bewegen, müsste man die Feinausrichtung eigentlich
+nur ein einziges Mal durchführen. In einem Live-System bliebe pro
+Aufnahme nur das Drehen und Aneinanderhängen übrig, was nur wenige
+Tausendstelsekunden dauert. Mehr dazu in Abschnitt 11.
 
-Für das Training und die Bewertung braucht man die "Wahrheit":
-**Ground Truth (GT)** = von Hand gezeichnete Boxen um jedes echte
-Objekt. Dafür wurde ein eigener Label-Editor gebaut
-(`experiment/manual_bbox_editor.py`, Open3D-basiert). Konventionen:
+## 4. Woher weiß man, was richtig ist? Das Labeling
 
-- Klassen: person, bicycle, car
-- Jede Box trägt ein **static-Flag** (steht das Objekt, z. B.
-  geparktes Auto, oder bewegt es sich — wichtig für §9)
-- Unbrauchbare Frames wurden als *ignored/invalid* markiert (2521
-  Stück) und nachweislich von Training und Bewertung ausgeschlossen
-- Finale Labelstände liegen in `*_labels_manual_correct/`
+Damit ein neuronales Netz lernen kann und damit man seine Leistung
+bewerten kann, braucht man die "richtige Antwort" zum Vergleichen.
+Diese richtige Antwort nennt man Ground Truth: Ein Mensch schaut sich
+jede Aufnahme an und zeichnet von Hand um jedes echte Objekt eine
+Bounding Box. Diesen Vorgang nennt man Labeling, die einzelnen
+Markierungen Labels.
 
-## 5. Konvertierung ins Trainingsformat und Datensplits
+Für dieses Projekt wurde dafür ein eigenes Markierungsprogramm
+entwickelt (`experiment/manual_bbox_editor.py`). Beim Labeling wurden
+einige wichtige Konventionen eingehalten:
 
-Das Trainingsframework **MMDetection3D** (Open-Source-Baukasten für
-3D-Objekterkennung) erwartet Daten im **KITTI-Format** (KITTI = der
-bekannteste Datensatz/Standard für 3D-Erkennung im Straßenverkehr).
-Die Konverter (`exp.py`, `exp_to_kitti.py`) drehen und verschieben die
-Punktwolken in ein KITTI-ähnliches Koordinatensystem und schreiben
-Binärdateien + Index-Dateien (*PKL-Infos*).
+- Es gibt drei Objektklassen: Person, Fahrrad und Auto.
+- Jede Box bekommt zusätzlich ein Merkmal namens "static", das angibt,
+  ob das Objekt stillsteht (zum Beispiel ein geparktes Auto) oder sich
+  bewegt. Diese Unterscheidung wird in Abschnitt 9 noch sehr wichtig.
+- Aufnahmen, die aus irgendeinem Grund unbrauchbar waren, wurden als
+  ungültig markiert. Das betraf 2521 Frames. Es wurde ausdrücklich
+  geprüft, dass diese Frames weder ins Training noch in die Bewertung
+  eingeflossen sind.
 
-**Datensplits:** Die Frames jedes Experiments wurden **zeitlich** in
-80 % Training / 10 % Validierung / 10 % Test geteilt (*Split* =
-Aufteilung; *zeitlich* heißt: die letzten 10 % der Zeitachse sind
-Test — so "sieht" das Training nie in die Zukunft des Tests).
-Geprüft: kein Frame liegt in zwei Splits (*Leakage-Check*; *Leakage* =
-verbotenes Durchsickern von Testinformation ins Training, das
-Ergebnisse künstlich schönt).
+## 5. Vorbereitung fürs Training: Datenformat und Datenaufteilung
 
-## 6. Das Daten-Audit: drei gefundene und behobene Fehler
+Für das Training wurde das frei verfügbare Software-Framework
+MMDetection3D verwendet, ein Baukasten für 3D-Objekterkennung. Dieses
+Framework erwartet die Daten in einem bestimmten Format, dem
+KITTI-Format. KITTI ist der bekannteste öffentliche Datensatz für
+Objekterkennung im Straßenverkehr, und sein Datenformat hat sich als
+Standard etabliert. Eigens geschriebene Konvertierungsprogramme drehen
+und verschieben unsere Punktwolken dafür in ein KITTI-ähnliches
+Koordinatensystem und schreiben sie in das erwartete Dateiformat.
 
-Auf die Frage "Ist die Datenbasis wirklich sauber?" wurde die gesamte
-Pipeline systematisch geprüft (`DATA_AUDIT.md`). Drei echte Fehler:
+Anschließend wurden die Daten aufgeteilt. Ein neuronales Netz darf
+nämlich niemals mit denselben Daten bewertet werden, mit denen es
+trainiert wurde — sonst prüft man nur, ob es auswendig gelernt hat.
+Üblich ist eine Aufteilung in drei Teile, die man Splits nennt:
 
-**Fehler 1 — Der Boden wurde abgeschnitten.** Das Netz verarbeitet nur
-Punkte innerhalb eines festen Quaders (*point cloud range*, hier
-z ≥ −3 m). Die Konvertierung schob den Boden aber auf z = −3.44 m —
-ein Filter warf damit den Boden **und die unteren ~40 cm jedes
-Objekts** weg (Menschen ohne Füße, Autos ohne Räder). Fix: Verschiebung
-korrigiert, Boden liegt jetzt bei −1.74 m (wie in KITTI üblich).
+- **Trainings-Split (80 %):** Mit diesen Daten lernt das Netz.
+- **Validierungs-Split (10 %):** Mit diesen Daten wird während des
+  Trainings zwischendurch geprüft, welcher Trainingsstand der beste ist.
+- **Test-Split (10 %):** Diese Daten bleiben bis ganz zum Schluss
+  unangetastet und liefern die endgültige, unverfälschte Bewertung.
 
-**Fehler 2 — Alle Boxen schwebten.** Der Label-Editor speichert die
-Boxhöhe als **Mittelpunkt** (*gravity center*), das Framework erwartet
-die **Unterkante** (*bottom center*). Alle Trainingsboxen saßen eine
-halbe Boxhöhe zu hoch (beim Auto ~75 cm). Fix im Konverter
-(`z −= Höhe/2`), Korrektheit statistisch verifiziert.
+Die Aufteilung erfolgte zeitlich: Von jedem Experiment bilden die
+ersten 80 Prozent der Zeitachse das Training und die letzten 10 Prozent
+den Test. So kann das Training niemals "in die Zukunft" des Tests
+schauen. Es wurde außerdem geprüft, dass keine einzige Aufnahme in
+zwei Splits gleichzeitig vorkommt. Ein solches Durchsickern von
+Testdaten ins Training nennt man Leakage; es würde die Ergebnisse
+künstlich verbessern und wurde hier ausgeschlossen.
 
-**Fehler 3 — Intensitäten nicht vergleichbar.** Jeder Punkt hat eine
-*Intensität* (Stärke der Laserreflexion). Sie wurde pro Frame am
-hellsten Punkt normiert — dieselbe Fläche bekam in jedem Frame andere
-Werte. Fix: fester Divisor (5000) mit Clipping.
+## 6. Das Daten-Audit: drei versteckte Fehler gefunden und behoben
 
-Alle Ergebnisse **vor** diesen Fixes ("v1") sind obsolet. Der Datensatz
-nach den Fixes heißt **v2**.
+Bevor den Ergebnissen vertraut werden konnte, wurde die gesamte
+Datenverarbeitungskette systematisch überprüft. Diese Prüfung (das
+"Audit") förderte drei echte Fehler zutage, die alle behoben wurden.
 
-## 7. Training
+**Fehler 1: Der Boden wurde abgeschnitten.** Das Netz verarbeitet nur
+Punkte innerhalb eines festgelegten räumlichen Bereichs, unter anderem
+nur Punkte, die höher als 3 Meter unter dem Koordinatenursprung liegen.
+Durch einen falschen Verschiebungswert in der Konvertierung landete der
+Boden unserer Szene aber bei 3,44 Metern unter dem Ursprung — also
+außerhalb dieses Bereichs. Ein Filter entfernte deshalb den kompletten
+Boden und zusätzlich die unteren etwa 40 Zentimeter jedes Objekts. Das
+Netz sah im Training also Menschen ohne Füße und Autos ohne Räder. Nach
+der Korrektur liegt der Boden auf der Höhe, die das Netz aus seinem
+Vortraining gewohnt ist.
 
-**Modell: PointPillars** — ein schnelles Standard-Netz für
-3D-Erkennung. Es teilt die Szene von oben in ein Raster aus Säulen
-(*Pillars*), fasst die Punkte jeder Säule zu einem Merkmalsvektor
-zusammen und lässt darauf ein 2D-Faltungsnetz Boxen vorhersagen. Boxen
-entstehen aus *Anchors* (vordefinierte Referenzboxen typischer
-Objektgröße), die das Netz verschiebt und skaliert.
+**Fehler 2: Alle Boxen schwebten in der Luft.** Das Markierungsprogramm
+speichert die Höhenposition einer Box als deren Mittelpunkt. Das
+Trainingsframework interpretiert denselben Zahlenwert aber als
+Unterkante der Box. Dadurch saßen alle Trainingsboxen um eine halbe
+Boxhöhe zu hoch — bei einem Auto sind das rund 75 Zentimeter. Der
+Fehler wurde im Konvertierungsprogramm korrigiert, und die Korrektur
+wurde statistisch überprüft.
 
-**Finetuning statt Training von Null:** Startpunkt ist ein auf KITTI
-vortrainierter *Checkpoint* (= gespeicherter Netzzustand). Das Netz
-kennt also schon "Auto/Fußgänger/Radfahrer" und lernt 50 *Epochen*
-(eine Epoche = einmal alle Trainingsdaten sehen) lang unsere Szene.
-Wichtige Konvention: Klassenreihenfolge person=0, bicycle=1, car=2
-(muss zum KITTI-Checkpoint passen).
+**Fehler 3: Die Helligkeitswerte waren nicht vergleichbar.** Jeder
+Messpunkt trägt neben seiner Position auch eine Intensität — ein Maß
+dafür, wie stark die Oberfläche das Laserlicht reflektiert hat. Diese
+Werte wurden ursprünglich in jeder Aufnahme am jeweils hellsten Punkt
+skaliert. Die Folge: Dieselbe Oberfläche bekam in jeder Aufnahme einen
+anderen Zahlenwert. Jetzt wird stattdessen durch eine feste Zahl
+geteilt, sodass die Werte überall dieselbe Bedeutung haben.
 
-**Checkpoint-Auswahl:** Nach jeder Epoche wird auf dem
-Validierungs-Split die Erkennungsqualität (mAP, §8) gemessen; der
-beste Stand (`save_best`) wird gespeichert. Der Test-Split wird genau
-**einmal** am Ende mit diesem besten Checkpoint angefasst — so bleibt
-die Testzahl unverfälscht.
+Alle Ergebnisse, die vor diesen Korrekturen entstanden waren, wurden
+für ungültig erklärt. Der bereinigte Datenstand trägt die Bezeichnung
+"v2", und alle Zahlen in diesem Bericht beziehen sich darauf.
 
-## 8. Die Metrik — und der gefundene Metrik-Fehler
+## 7. Das Training des neuronalen Netzes
 
-**Wie wird "gut" gemessen?** Eine Prediction zählt als Treffer, wenn
-ihre **IoU** (*Intersection over Union* = Überlappungsvolumen geteilt
-durch Vereinigungsvolumen von Prediction- und GT-Box; 1.0 = perfekt)
-über einer Schwelle liegt. **AP30/40/50/60** = *Average Precision* bei
-IoU-Schwelle 0.3/0.4/0.5/0.6; **mAP** = Mittel über die vier Schwellen
-und drei Klassen. Diagnose-Lesart: AP30 misst "Objekt gefunden?",
-AP60 misst "Box sitzt präzise?". Jede Prediction trägt zudem einen
-**Score** (Konfidenz 0–1); die AP bewertet das gesamte Score-Ranking,
-ohne feste Schwelle (Details: Anhang von `DATA_AUDIT.md`).
+Als Erkennungsmodell wurde PointPillars verwendet, ein etabliertes und
+besonders schnelles neuronales Netz für die 3D-Objekterkennung. Die
+Grundidee: Das Netz betrachtet die Szene von oben und teilt sie in ein
+Raster aus senkrechten Säulen ein (englisch "pillars", daher der Name).
+Alle Punkte innerhalb einer Säule werden zu einer kompakten Beschreibung
+zusammengefasst. Auf diesem Raster arbeitet dann ein Bilderkennungsnetz,
+das die Bounding Boxes vorhersagt. Als Startpunkte für die Boxen dienen
+sogenannte Anchors: vordefinierte Referenzboxen in der typischen Größe
+eines Autos, einer Person oder eines Fahrrads, die das Netz dann nur
+noch verschieben und in der Größe anpassen muss.
 
-**Der Metrik-Fehler:** Die ursprüngliche Implementierung berechnete
-die AP **pro Frame** und mittelte über *alle* Frames — auch die ohne
-das jeweilige Objekt (die zählten als 0). Da nur 70 von 266 Test-Frames
-ein Fahrrad enthalten, war die Fahrrad-AP mathematisch auf
-70/266 × 0.909 = **0.239 gedeckelt** — egal wie gut das Netz war.
-Tatsächlich wurden **70 von 70 Fahrrädern erkannt**. Die Metrik wurde
-auf das Standardverfahren umgebaut (*datensatzweite AP*: alle
-Predictions des Testsplits gemeinsam ranken). Aufgefallen war der Bug,
-weil zwei verschiedene Modelle exakt dieselbe Fahrrad-AP hatten —
-verdächtig genau der theoretische Deckelwert.
+Das Netz wurde nicht von Null trainiert. Stattdessen wurde ein
+Checkpoint als Ausgangspunkt verwendet — so nennt man einen
+gespeicherten Zustand eines bereits trainierten Netzes. Unser
+Startpunkt war ein auf dem KITTI-Datensatz vortrainiertes PointPillars,
+das also bereits grundsätzlich weiß, wie Autos, Fußgänger und Radfahrer
+in LiDAR-Daten aussehen. Dieses Vorwissen wurde dann auf unsere Szene
+angepasst. Dieses Vorgehen nennt man Finetuning. Trainiert wurde über
+50 Epochen; eine Epoche bedeutet, dass das Netz einmal alle
+Trainingsdaten gesehen hat.
 
-## 9. Ergebnisse
+Nach jeder Epoche wurde auf dem Validierungs-Split gemessen, wie gut
+das Netz gerade erkennt. Der beste Zwischenstand wurde automatisch
+gespeichert. Erst ganz am Ende wurde dieser beste Stand ein einziges
+Mal auf den Test-Split angewendet — das Ergebnis dieser einen Messung
+ist die berichtete Testleistung. Dieses strenge Vorgehen stellt sicher,
+dass die Testzahl nicht durch wiederholtes Probieren geschönt ist.
 
-### 9.1 Gesamtergebnis (Test-Split, korrigierte Metrik)
+## 8. Wie wird die Erkennungsleistung gemessen? Und der Metrik-Fehler
 
-| Modell | mAP | AP30 person/bicycle/car | AP60 person/bicycle/car |
+Um zu entscheiden, ob eine vorhergesagte Box ein Treffer ist, vergleicht
+man sie mit der zugehörigen Ground-Truth-Box über die sogenannte IoU
+(Intersection over Union). Das ist das Verhältnis aus dem Volumen, in
+dem sich beide Boxen überlappen, und dem Volumen, das beide Boxen
+zusammen einnehmen. Eine IoU von 1,0 bedeutet perfekte Deckung, eine
+IoU von 0 bedeutet keinerlei Berührung.
+
+Die Erkennungsleistung wird als Average Precision (AP) angegeben, auf
+Deutsch etwa "mittlere Genauigkeit". Die Zahl hinter der AP nennt die
+IoU-Schwelle, ab der eine Vorhersage als Treffer zählt: AP30 verlangt
+mindestens 30 Prozent Überlappung und misst damit vor allem, ob ein
+Objekt überhaupt gefunden wurde. AP60 verlangt 60 Prozent Überlappung
+und misst damit, ob die Box auch präzise sitzt. Der Gesamtwert mAP
+(mean Average Precision) ist der Mittelwert über die vier verwendeten
+Schwellen (0,3 / 0,4 / 0,5 / 0,6) und über alle drei Objektklassen.
+
+Jede Vorhersage des Netzes trägt außerdem einen Score: eine Zahl
+zwischen 0 und 1, die ausdrückt, wie sicher sich das Netz bei dieser
+Box ist. In die AP-Berechnung fließt keine feste Score-Schwelle ein —
+stattdessen werden alle Vorhersagen nach ihrem Score sortiert und die
+gesamte Rangliste bewertet. Das bestraft genau das Richtige: Ein Netz,
+dessen Fehler niedrige Scores haben und dessen Treffer hohe Scores
+haben, verliert kaum Punkte.
+
+**Bei dieser Messung steckte ein schwerwiegender Fehler in der
+ursprünglichen Implementierung.** Die AP wurde für jede Aufnahme einzeln
+berechnet und dann über alle Aufnahmen gemittelt — auch über solche, in
+denen die gesuchte Objektklasse gar nicht vorkommt. Solche Aufnahmen
+gingen als "0 Punkte" in den Mittelwert ein. Da nur 70 der 266
+Test-Aufnahmen überhaupt ein Fahrrad enthalten, konnte der Fahrrad-Wert
+rechnerisch nie über 0,24 steigen — völlig unabhängig davon, wie gut
+das Netz war. Tatsächlich hatte das Netz alle 70 Fahrräder gefunden.
+Aufgefallen ist der Fehler, weil zwei unterschiedlich trainierte
+Modelle exakt denselben Fahrrad-Wert erreichten — und zwar genau den
+theoretischen Maximalwert dieser fehlerhaften Rechnung. Die Messung
+wurde daraufhin auf das übliche Standardverfahren umgestellt, bei dem
+alle Vorhersagen des gesamten Test-Splits gemeinsam bewertet werden.
+
+Dieser Fehler hat das Netz nie schlechter gemacht — aber er hat lange
+verdeckt, wie gut es wirklich war.
+
+## 9. Die Ergebnisse
+
+### 9.1 Gesamtergebnis auf dem Test-Split
+
+Die folgende Tabelle zeigt die Testleistung aller trainierten Varianten.
+Die Abkürzungen in den Spalten stehen für die drei Klassen Person (p),
+Fahrrad (b für bicycle) und Auto (c für car). "GT-Sampling" und
+"Oversampling" sind Trainingsvarianten, die in Abschnitt 10 erklärt
+werden.
+
+| Modell | mAP | AP30 p/b/c | AP60 p/b/c |
 |---|---|---|---|
-| **merged + GT-Sampling** | **0.8916** | 0.903 / 0.972 / 0.909 | 0.758 / 0.883 / 0.814 |
-| merged Baseline | 0.8880 | 0.900 / 0.935 / 0.909 | 0.772 / 0.856 / 0.816 |
-| merged + Oversampling | 0.8788 | 0.901 / 0.890 / 0.909 | 0.856 / 0.881 / 0.812 |
-| os1 + GT-Sampling | 0.8570 | 0.902 / 0.863 / 0.909 | 0.623 / 0.791 / 0.909 |
-| os0 + GT-Sampling | 0.8412 | 0.863 / 0.982 / 0.997 | 0.654 / 0.496 / 0.908 |
+| **merged mit GT-Sampling** | **0.8916** | 0.903 / 0.972 / 0.909 | 0.758 / 0.883 / 0.814 |
+| merged Basisvariante | 0.8880 | 0.900 / 0.935 / 0.909 | 0.772 / 0.856 / 0.816 |
+| merged mit Oversampling | 0.8788 | 0.901 / 0.890 / 0.909 | 0.856 / 0.881 / 0.812 |
+| os1 mit GT-Sampling | 0.8570 | 0.902 / 0.863 / 0.909 | 0.623 / 0.791 / 0.909 |
+| os0 mit GT-Sampling | 0.8412 | 0.863 / 0.982 / 0.997 | 0.654 / 0.496 / 0.908 |
 
-View-Ranking bei einheitlicher Konfiguration:
-**merged > os1 > os0** — konsistent mit der Punktdichte pro Objekt.
+Bei einheitlicher Trainingskonfiguration ergibt sich die Rangfolge
+merged vor os1 vor os0. Das passt zu der Erwartung, dass mehr
+Messpunkte pro Objekt die Erkennung erleichtern.
 
-### 9.2 Warum die Gesamtzahlen schmeicheln: dynamisch vs. statisch
+### 9.2 Warum diese Zahlen schmeicheln — und die ehrlichere Auswertung
 
-Der Testbereich steht voller **geparkter Autos** (1548 von 1583
-car-GT!), die in allen Splits identisch vorkommen — das Netz erkennt
-sie trivial wieder (AP ≈ 1.0, Score ≈ 0.98). Die Gesamtwerte messen
-dort also Wiedererkennung, keine Generalisierung. Deshalb wurde die
-Bewertung nach dem static-Flag **getrennt** (eigenes Skript mit
-*Ignore-Regionen*: die jeweils andere Gruppe zählt weder als Treffer
-noch als Fehler):
+Ein wichtiger Einwand kam beim Betrachten der Szene auf: Der
+Testbereich steht voller geparkter Autos. Von den 1583 Auto-Boxen im
+Test-Split gehören 1548 zu geparkten Autos — und genau dieselben
+geparkten Autos standen auch schon in den Trainingsdaten, am selben
+Ort, in derselben Stellung. Das Netz muss sie also nicht wirklich
+"erkennen", sondern nur wiedererkennen. Solche trivialen Treffer ziehen
+die Gesamtwerte nach oben.
 
-**Nur dynamische Objekte (AP30/AP60):**
+Deshalb wurde die Bewertung zusätzlich getrennt durchgeführt: einmal
+nur für die bewegten Objekte und einmal nur für die stillstehenden.
+Die bewegten Objekte sind die eigentliche Aufgabe des Systems. Das
+Ergebnis für die bewegten Objekte (jeweils AP30 / AP60):
 
-| Modell | person (n≈229) | bicycle (n=70) | car (n=35) |
+| Modell | Person | Fahrrad | Auto |
 |---|---|---|---|
-| merged + GT-Sampling | 0.90 / 0.71 | **0.97 / 0.88** | **0.90** / 0.19 |
-| merged Baseline | 0.89 / 0.71 | 0.94 / 0.86 | 0.70 / 0.13 |
-| os0 + GT-Sampling | 0.73 / 0.35 | 0.98 / 0.50 | 0.74 / 0.68 |
-| os1 + GT-Sampling | 0.90 / 0.46 | 0.86 / 0.79 | **0.09 / 0.09** |
+| merged mit GT-Sampling | 0.90 / 0.71 | **0.97 / 0.88** | **0.90** / 0.19 |
+| merged Basisvariante | 0.89 / 0.71 | 0.94 / 0.86 | 0.70 / 0.13 |
+| os0 mit GT-Sampling | 0.73 / 0.35 | 0.98 / 0.50 | 0.74 / 0.68 |
+| os1 mit GT-Sampling | 0.90 / 0.46 | 0.86 / 0.79 | **0.09 / 0.09** |
 
-### 9.3 Das Hauptergebnis: Fusion rettet das bewegte Auto
+### 9.3 Das Hauptergebnis der Arbeit
 
-**os1 allein verfehlt das fahrende Auto fast vollständig** (AP30
-0.02 Baseline / 0.09 mit bester Trainingskonfiguration): Seine Boxen
-liegen systematisch ~1.5 m daneben, obwohl das Auto klar sichtbar ist
-(median 420 Punkte). Da auch das beste Training nichts ändert, ist es
-ein **Geometrieproblem der einseitigen Sicht**, kein Trainingsproblem.
-Die **Fusion behebt es: 0.90.** os0 liegt dazwischen (0.74). Das ist
-die zentrale, experimentell abgesicherte Aussage der Arbeit.
+In dieser Tabelle steckt der wichtigste Befund: **Der Sensor os1
+verfehlt das fahrende Auto fast vollständig.** Sein Wert von 0,09
+bedeutet, dass seine Vorhersagen praktisch nie als Treffer zählen —
+die Boxen liegen im Mittel anderthalb Meter neben dem echten Auto,
+obwohl das Auto in seinen Daten klar sichtbar ist (im Mittel 420
+Messpunkte). Besonders aussagekräftig: Auch mit der besten gefundenen
+Trainingskonfiguration verbessert sich os1 kaum (von 0,02 auf 0,09).
+Das Problem lässt sich also nicht durch besseres Training lösen — es
+liegt an der Geometrie: os1 sieht das Auto nur von einer Seite und
+kann seine Position deshalb systematisch nicht richtig bestimmen.
 
-## 10. Ablationen (gezielte Vergleichsexperimente)
+**Die Fusion beider Sensoren löst genau dieses Problem: Der Wert
+springt auf 0,90.** Das ist die zentrale, experimentell abgesicherte
+Aussage der Arbeit — die Kombination beider Blickwinkel ist beim
+bewegten Objekt kein Luxus, sondern notwendig.
 
-*Ablation* = kontrolliertes Experiment, bei dem genau eine Stellgröße
-verändert wird, um ihren Effekt zu isolieren.
+## 10. Die Vergleichsexperimente (Ablationen)
 
-**A) GT-Sampling (Gewinner, übernommen).** Gegen die Klassenimbalance
-(Auto:Fahrrad ≈ 22:1 im Training) werden beim Training zusätzliche
-Fahrrad-/Personen-Instanzen aus anderen Trainingsframes in die Szene
-kopiert (*Copy-Paste-Augmentierung*; die Instanzen-Datenbank wurde
-strikt nur aus dem Train-Split gebaut — kein Leakage). Effekt:
-bicycle AP30 0.935→0.972, dynamisches Auto 0.70→0.90, nichts wird
-schlechter. Auf os1 ebenfalls positiv; auf dem dünner besetzten os0
-ein Trade-off (Detektion ↑, Präzision ↓).
+Eine Ablation ist ein kontrolliertes Experiment, bei dem man genau
+eine Stellschraube verändert und alles andere gleich lässt, um den
+Effekt dieser einen Änderung sauber zu messen. Vier solcher
+Experimente wurden durchgeführt.
 
-**B) Frame-Oversampling (verworfen).** Frames mit Fahrrädern doppelt
-zeigen (*Repeat-Factor-Sampling*). Ergebnis: mAP 0.8788 < Baseline;
-bringt keine neuen Objekt-Konstellationen. (Transparenz: Dieser Run
-crashte bei Epoche 37, weil Metrik-Code während des Laufs deployt
-wurde — mein Fehler, per Resume beendet; Checkpoint-Caveat in
-`ABLATION_BICYCLE.md` dokumentiert. Lehre: nie Code ändern, den ein
-laufender Prozess nutzt.)
+**Experiment A: GT-Sampling — der Gewinner.** In den Trainingsdaten
+kommen auf jedes Fahrrad ungefähr 22 Autos. Bei einem so starken
+Ungleichgewicht lernt das Netz die seltene Klasse schlechter. Als
+Gegenmaßnahme wurden beim Training zusätzliche Fahrrad- und
+Personen-Exemplare aus anderen Trainingsaufnahmen in die jeweilige
+Szene hineinkopiert — eine Standard-Technik, die man GT-Sampling oder
+Copy-Paste-Augmentierung nennt. Wichtig für die Sauberkeit: Die
+kopierten Exemplare stammen ausschließlich aus dem Trainings-Split,
+niemals aus Validierungs- oder Testdaten. Das Ergebnis: Die
+Fahrrad-Erkennung stieg von 0,935 auf 0,972, und die Erkennung des
+fahrenden Autos verbesserte sich von 0,70 auf 0,90 — ohne dass
+irgendetwas anderes schlechter wurde. Diese Variante wurde als
+Standard übernommen.
 
-**C) Cross-class NMS (metrisch neutral).** *NMS* (Non-Maximum
-Suppression) entfernt Duplikat-Boxen, aber nur innerhalb derselben
-Klasse — deshalb kann das Netz z. B. "Fahrrad" und "Person" gleichzeitig
-auf demselben Cluster melden. Eine Nachverarbeitungsregel (Box zu ≥80 %
-in höher gescorter Box anderer Klasse → verwerfen) entfernt 11/2353
-Predictions, ändert aber keinen AP-Wert. Kosmetisch sinnvoll, mehr nicht.
+**Experiment B: Frame-Oversampling — verworfen.** Die naheliegendere
+Alternative: Aufnahmen, die Fahrräder enthalten, werden im Training
+einfach doppelt so oft gezeigt. Das brachte nichts — die Gesamtleistung
+lag sogar unter der Basisvariante. Die Erklärung: Das bloße Wiederholen
+derselben Aufnahmen erzeugt keine neuen Situationen, aus denen das Netz
+etwas lernen könnte. (Zur Transparenz: Dieser Trainingslauf stürzte bei
+Epoche 37 ab, weil während des laufenden Trainings der Messcode auf dem
+Server ausgetauscht wurde — ein vermeidbarer Bedienfehler. Der Lauf
+wurde vom letzten Zwischenstand fortgesetzt; die Einschränkung ist in
+`ABLATION_BICYCLE.md` dokumentiert und ändert nichts am negativen
+Fazit.)
 
-**D) Unterboden-Filter (verworfen, Hypothese widerlegt).** Verdacht:
-Spiegelreflexions-Punkte unter dem Boden (z ≈ −2) lösen Geisterboxen
-aus. Test: Punkte z < −2 entfernt (0.09 % aller Punkte), neu trainiert.
-Ergebnis: Geisterboxen wurden **nicht** weniger (58 vs. 42), das
-dynamische Auto wurde schlechter (0.63). Nicht übernommen — und die
-Reflexions-Hypothese damit sauber falsifiziert.
+**Experiment C: Klassenübergreifende Duplikat-Entfernung — wirkungslos,
+aber unschädlich.** Das Netz meldet manchmal mehrere Deutungen für
+denselben Punkthaufen gleichzeitig, zum Beispiel "Auto" und darin
+zusätzlich "Fahrrad". Der übliche Aufräummechanismus (Non-Maximum
+Suppression, kurz NMS) entfernt Duplikate nur innerhalb derselben
+Klasse. Getestet wurde eine Zusatzregel: Eine Box, die fast vollständig
+in einer sichereren Box einer anderen Klasse liegt, wird verworfen.
+Diese Regel entfernte 11 von 2353 Vorhersagen und veränderte keinen
+einzigen Messwert. Sie schadet nicht und macht die Ausgabe optisch
+sauberer, bringt aber messbar nichts.
 
-## 11. Laufzeiten und Echtzeitfähigkeit
+**Experiment D: Unterboden-Filter — Hypothese widerlegt.** In den Daten
+finden sich vereinzelt Punkthaufen unterhalb des Bodens, vermutlich
+Spiegelungen an nassen Flächen. Die Hypothese war, dass diese
+"Spiegelpunkte" Fehldetektionen auslösen. Zum Test wurden alle Punkte
+tiefer als 2 Meter unter dem Ursprung entfernt (das betraf nur 0,09
+Prozent aller Punkte) und das Netz neu trainiert. Das Ergebnis
+widerlegte die Hypothese: Die Fehldetektionen wurden nicht weniger
+(58 statt 42), und die Erkennung des fahrenden Autos wurde schlechter
+(0,63 statt 0,90). Der Filter wurde deshalb nicht übernommen. Auch ein
+solches Negativergebnis ist wertvoll: Eine plausible Erklärung wurde
+aufgestellt, gezielt getestet und sauber ausgeschlossen.
 
-*Inferenz* = das fertige Netz auf neue Daten anwenden. Gemessen auf
-einer Tesla V100 (Batch 1, inkl. Datenladen):
+## 11. Geschwindigkeit: Kann das System in Echtzeit arbeiten?
 
-| View | Zeit/Frame | Sensorbudget (10 Hz) | Auslastung |
+Unter Inferenz versteht man das Anwenden des fertig trainierten Netzes
+auf neue Daten: Punktwolke hinein, Bounding Boxes heraus. Die
+Inferenzzeit ist die Dauer eines solchen Durchlaufs. Sie wurde auf der
+Grafikkarte des Rechenservers (einer Tesla V100) gemessen, einschließlich
+des Ladens und Vorverarbeitens der Daten.
+
+Die Rechnung zur Echtzeitfähigkeit geht so: Der Sensor liefert zehn
+Aufnahmen pro Sekunde, also kommt alle 100 Millisekunden eine neue
+Punktwolke an. Ein System arbeitet in Echtzeit, wenn es mit der
+Verarbeitung einer Aufnahme fertig ist, bevor die nächste eintrifft —
+es muss also unter 100 Millisekunden bleiben.
+
+| Variante | Zeit pro Aufnahme | Budget | Ergebnis |
 |---|---|---|---|
-| merged | 85 ms | 100 ms | 85 % ✓ |
-| os0 / os1 | 45 / 43 ms | 100 ms | ~44 % ✓ |
+| merged (Fusion) | 85 ms | 100 ms | echtzeitfähig, 15 ms Reserve |
+| os0 einzeln | 45 ms | 100 ms | echtzeitfähig |
+| os1 einzeln | 43 ms | 100 ms | echtzeitfähig |
 
-Rechnung: 10 Aufnahmen/s → 100 ms Budget pro Aufnahme; alle Varianten
-bleiben darunter → **echtzeitfähig, auch die Fusion** (Kosten der
-Fusion: Faktor 2 wegen doppelter Punktzahl). Der Offline-Merge
-(2.25 s, per-Frame-ICP) ist dafür nicht repräsentativ — online genügt
-die einmal kalibrierte Transformation (Millisekunden).
+Die Fusion kostet ungefähr doppelt so viel Rechenzeit wie ein
+Einzelsensor — logisch, denn es sind doppelt so viele Punkte zu
+verarbeiten. Entscheidend ist: **Auch die Fusion bleibt unter dem
+100-Millisekunden-Budget und ist damit echtzeitfähig.**
 
-## 12. Fehleranalysen (die drei verstandenen Schwächen)
+Zum vollständigen Bild gehört der Merge-Schritt (Abschnitt 3). In
+unserer Offline-Verarbeitung dauerte er 2,3 Sekunden pro Aufnahme —
+das läge weit über dem Budget. Diese Zahl ist aber nicht repräsentativ
+für einen Live-Betrieb: Sie enthält die ICP-Feinausrichtung, die bei
+fest montierten Sensoren nur ein einziges Mal nötig ist. Live bliebe
+nur das Drehen und Aneinanderhängen der Punkte übrig, was wenige
+Millisekunden kostet. Das Gesamtsystem bliebe damit im Zeitbudget.
 
-**(1) Größenunterschätzung am bewegten Auto** (erklärt die niedrige
-AP60 von 0.19): Das beste Pred pro GT sitzt quer nur 9 cm daneben,
-Höhe und Winkel fast perfekt — aber die Box ist median **0.95 m zu
-kurz und 0.41 m zu schmal**. Das Netz sieht nur ~60 % der
-Fahrzeuglänge (Teilsichtbarkeit) und fällt auf sein KITTI-Größen-Prior
-(~3.9×1.6 m) zurück, während die GT-Box 4.95×1.95 m misst. Rechnerisch
-deckelt allein die Größe die IoU bei ~0.62. Eine anfängliche
-Alternativhypothese (*Bewegungsverschmierung* durch zeitversetzte
-Sensor-Sweeps) wurde geprüft und **widerlegt** (Label-Versatz zwischen
-den Sensoren median nur 9 cm). Offener Prüfpunkt: reale Fahrzeugmaße
-gegen die GT-Box prüfen (evtl. teilweise Label-Artefakt).
+## 12. Die drei verbleibenden Schwächen — und warum sie auftreten
 
-**(2) Niedrige Konfidenz am dynamischen Objekt:** bester Score am
-bewegten Auto median 0.74 (10/35 Frames < 0.6) vs. 0.98 bei Parkern.
-Konsequenz: Ein globaler Score-Schwellwert, der alle Fehldetektionen
-entfernt UND das Zielauto in jedem Frame behält, existiert nicht —
-in der Praxis braucht es klassenweise Betriebspunkte oder Tracking.
+Kein Ergebnis ist perfekt. Die drei Schwachstellen des Systems wurden
+bis zur Ursache zurückverfolgt.
 
-**(3) "Geisterräder"** (42 bicycle-Fehldetektionen, Score 0.3–0.6):
-Drei per Punktwolken-Forensik belegte Ursachen: (a) echte, nie
-gelabelte statische Objekte (vertikale Strukturen mit hunderten
-Punkten an festen Positionen — vor Ort prüfen, evtl. abgestellte
-Räder); (b) vereinzelt Reflexionsartefakte (als Hauptursache durch
-Ablation D widerlegt); (c) **Positions-Halluzination**: Boxen über
-blankem Boden, exakt (0.23 m) auf dem Weg der Trainingsräder — das
-Netz hat sich *Orte* gemerkt statt nur Formen, weil alle Daten aus
-**einer einzigen Szene** stammen. Kein GT-Sampling-Artefakt (die
-Baseline zeigt dieselben FPs). Das ist die zentrale Limitation der
-Datenbasis.
+**Schwäche 1: Die Box um das fahrende Auto ist zu klein.** Das fahrende
+Auto wird zwar fast immer gefunden (die AP30 von 0,90 belegt das), aber
+der strengere Wert AP60 liegt nur bei 0,19 — die Boxen sitzen also
+nicht präzise genug. Die Fehlerzerlegung zeigt: Die Position stimmt
+fast perfekt (seitlich nur 9 Zentimeter Abweichung), aber die
+vorhergesagte Box ist im Mittel 95 Zentimeter zu kurz und 41 Zentimeter
+zu schmal. Der Grund: Die Sensoren sehen von dem fahrenden Auto immer
+nur einen Teil (die Messpunkte decken nur etwa 60 Prozent der
+Fahrzeuglänge ab), und in dieser Unsicherheit fällt das Netz auf die
+typischen Automaße aus seinem KITTI-Vortraining zurück — und
+KITTI-Autos sind kleiner als unser Zielfahrzeug laut Label (4,95 m ×
+1,95 m). Eine zunächst vermutete andere Erklärung — dass die Bewegung
+des Autos die fusionierte Punktwolke "verschmiert", weil die beiden
+Sensoren minimal zeitversetzt aufnehmen — wurde geprüft und
+ausgeschlossen: Der Versatz beträgt im Mittel nur 9 Zentimeter. Offen
+ist noch ein Realitätsabgleich: Sollten die echten Maße des Zielautos
+kleiner sein als die Label-Box, wäre ein Teil dieser "Schwäche" in
+Wirklichkeit ein Messfehler beim Labeln.
 
-## 13. Werkzeuge und Artefakte
+**Schwäche 2: Das Netz ist sich beim bewegten Objekt unsicher.** Beim
+fahrenden Auto liegt der Konfidenz-Score im Mittel bei 0,74, bei den
+geparkten Autos bei 0,98. In 10 von 35 Fällen liegt er unter 0,6.
+Praktische Folge: Es gibt keinen einzelnen Schwellwert, der gleichzeitig
+alle Fehldetektionen unterdrückt und das Zielauto in jeder Aufnahme
+behält. Ein reales System braucht deshalb entweder unterschiedliche
+Schwellwerte pro Objektklasse oder eine zeitliche Verfolgung über
+mehrere Aufnahmen hinweg (Tracking), die einzelne unsichere Aufnahmen
+überbrückt.
 
-- **Prediction-Viewer** (`experiment/prediction_viewer.py`):
-  interaktiver 3D-Viewer — Punktwolke + GT + Predictions, Frame-
-  Navigation, klassenweise Score-Schwellen (Tasten 1/2/3 + `+`/`−`),
-  `--full` für ganze Experimente (Predictions für alle 9981 Frames
-  exportiert)
-- **Abbildungen** (`figures_analysis/`): qualitative BEV-Beispiele
-  (os1-Versagen vs. merged-Erfolg im selben Frame, *BEV* = Bird's Eye
-  View, Vogelperspektive), Precision-Recall-Kurven, Score-Verteilungen,
-  Geisterbox-Forensik
-- **Analyse-Skripte** (`mmdetection3d/tools/analysis_tools/exp_*.py`):
-  dynamisch/statisch-Evaluation, Fehlerzerlegung, cross-class NMS,
-  PR-Figuren, Prediction-Exporte
-- **Doku**: `DATA_AUDIT.md`, `ABLATION_BICYCLE.md`, `RESULTS.md`
-- Alles versioniert auf GitHub
-  (`DieserLaurenz/lidar-ojbect-detection-parking-lot`, Branch master)
+**Schwäche 3: "Geisterfahrräder".** Das Netz meldet vereinzelt
+Fahrräder an Stellen, an denen keine sind (42 Fälle im Test, alle mit
+niedrigen Scores zwischen 0,3 und 0,6). Die Untersuchung dieser Fälle
+bis hinunter auf einzelne Aufnahmen ergab drei Ursachen. Erstens:
+Einige dieser "Fehler" sitzen auf echten, unbeweglichen Objekten mit
+hunderten Messpunkten, die schlicht nie gelabelt wurden — was dort
+wirklich steht (möglicherweise tatsächlich abgestellte Fahrräder!),
+lässt sich nur vor Ort klären. Zweitens: Die vermuteten
+Spiegelungs-Artefakte — diese Erklärung wurde durch Experiment D
+widerlegt. Drittens, und am interessantesten: Einige Boxen stehen über
+völlig leerem Boden, aber auf den Zentimeter genau an Stellen, an denen
+während des Trainings Fahrräder vorbeifuhren. Das Netz hat sich also
+nicht nur gemerkt, wie Fahrräder aussehen, sondern auch, **wo** sie
+üblicherweise auftauchen — und meldet an diesen Orten nun gelegentlich
+Fahrräder ohne Anlass. Das ist eine direkte Folge davon, dass alle
+Daten aus einer einzigen Szene stammen, und damit die wichtigste
+Einschränkung dieser Datenbasis.
+
+## 13. Entstandene Werkzeuge
+
+Neben den Trainingsergebnissen sind mehrere wiederverwendbare Werkzeuge
+entstanden:
+
+- Ein **interaktiver 3D-Viewer** (`experiment/prediction_viewer.py`),
+  mit dem man durch die Aufnahmen blättern und dabei die Punktwolke,
+  die von Hand gezeichneten Labels und die Vorhersagen des Netzes
+  gleichzeitig sehen kann. Die Anzeigeschwelle lässt sich pro
+  Objektklasse einstellen, und mit der Option `--full` lassen sich
+  ganze Experimente statt nur der Testabschnitte betrachten.
+- **Abbildungen** für die Thesis (im Ordner `figures_analysis/`):
+  Beispielszenen aus der Vogelperspektive (unter anderem der direkte
+  Vergleich "os1 verfehlt das Auto / merged trifft es" im selben
+  Moment), Genauigkeits-Vollständigkeits-Kurven (Precision-Recall) und
+  die Score-Verteilungen.
+- **Analyse-Skripte** (in `mmdetection3d/tools/analysis_tools/`) für
+  die getrennte Auswertung bewegt/unbewegt, die Fehlerzerlegung, die
+  Duplikat-Entfernung und die Erzeugung aller Abbildungen.
+- Die gesamte Arbeit ist mit Git versioniert und auf GitHub gesichert
+  (Repository `DieserLaurenz/lidar-ojbect-detection-parking-lot`).
 
 ## 14. Schlussfolgerungen
 
-1. **Sensorfusion ist beim bewegten Objekt notwendig, nicht optional:**
-   Ein Einzelsensor mit einseitiger Sicht lokalisiert das bewegte Auto
-   systematisch falsch (0.02–0.09); die Fusion löst das (0.90) — bei
-   weiterhin echtzeitfähiger Inferenz (85 ms < 100 ms Budget).
-2. **GT-Sampling ist die wirksamste Trainingsmaßnahme** gegen die
-   Klassenimbalance; Frame-Oversampling und Unterboden-Filter lohnen
-   nicht (beides sauber belegte Negativergebnisse).
-3. **Nur die dynamische Auswertung ist aussagekräftig** — Aggregatwerte
-   werden von auswendig gelernten Parkern getragen.
-4. **Daten- und Metrikqualität entscheidet:** Ohne die vier Fixes
-   (Boden, Boxhöhe, Intensität, Metrik) wären sämtliche Zahlen falsch
-   gewesen (Fahrrad schien 0.24, real 0.94).
-5. **Restschwächen sind verstanden und benannt:** Boxgröße am
-   teilsichtbaren Objekt (KITTI-Prior), Konfidenz am dynamischen
-   Objekt (→ klassenweise Betriebspunkte/Tracking), Positions-
-   Halluzination (→ Ein-Szenen-Limitation).
+Fünf Aussagen lassen sich aus diesem Projekt belegen:
 
-## 15. Limitationen und Future Work
+1. **Die Sensorfusion ist beim bewegten Objekt notwendig, nicht nur
+   hilfreich.** Ein einzelner Sensor mit ungünstigem Blickwinkel
+   bestimmt die Position des fahrenden Autos systematisch falsch, und
+   kein noch so gutes Training ändert daran etwas. Die Fusion beider
+   Sensoren löst das Problem — und bleibt dabei schnell genug für den
+   Live-Betrieb.
+2. **GT-Sampling ist die wirksamste Trainingsmaßnahme** gegen das
+   Klassenungleichgewicht. Die beiden Alternativen (Aufnahmen
+   wiederholen, Unterboden-Punkte filtern) wurden getestet und
+   begründet verworfen.
+3. **Nur die getrennte Auswertung nach bewegten und unbewegten Objekten
+   ist aussagekräftig.** Die Gesamtwerte werden von auswendig gelernten
+   geparkten Autos getragen und überzeichnen die wahre Leistung.
+4. **Daten- und Messqualität entscheiden über alles.** Ohne die vier
+   behobenen Fehler (Boden, Boxhöhe, Intensität, Messmethode) wären
+   sämtliche Zahlen falsch gewesen — die Fahrrad-Erkennung schien
+   katastrophal (0,24), war aber in Wahrheit ausgezeichnet (0,94).
+5. **Die verbleibenden Schwächen sind verstanden und erklärbar** —
+   zu kleine Boxen am teilverdeckten Objekt, geringere Konfidenz bei
+   Bewegung und ortsgebundene Fehldetektionen aus der Ein-Szenen-
+   Datenbasis.
 
-**Limitationen** (gehören transparent in die Thesis): eine einzige
-Szene; nur 3 physische Fahrräder / 1 Zielauto / wenige Personen;
-n=35 dynamische Auto-Beobachtungen im Test; Zielauto im Testsegment
-langsam (~2.2 m/s); statische Objekte identisch über alle Splits.
+## 15. Grenzen der Arbeit und Ausblick
 
-**Future Work:** Statik-/Hintergrundkarte für den fest installierten
-Sensor (unterdrückt Positions-Halluzinationen), Tracking über Frames,
-Online-Merge mit fester Extrinsik, mehr Szenen/Objektvielfalt,
-Motion-Kompensation, ggf. Nachlabeln der statischen "Rad-Verdächtigen".
+Zu einer ehrlichen Bewertung gehören die Grenzen: Alle Daten stammen
+aus einer einzigen Szene. Es gab nur drei verschiedene physische
+Fahrräder, ein Zielauto und wenige Personen. Im Test sind nur 35
+Beobachtungen des fahrenden Autos enthalten, und das Auto bewegt sich
+im Testabschnitt langsam (etwa 2 Meter pro Sekunde). Die geparkten
+Autos sind in Training und Test identisch. Diese Punkte begrenzen, wie
+weit sich die Zahlen verallgemeinern lassen, und gehören transparent in
+die Thesis.
 
-**Offene Prüfpunkte (nur vor Ort klärbar):** reale Maße des Zielautos
-(GT-Box 4.95×1.95 m plausibel?); was steht an den Rohkoordinaten
-[3.3, 2.2] und [2.7, 0.2] (abgestellte Räder oder Pfosten/Busch?).
+Für die Zukunft bieten sich an: eine Hintergrundkarte der festen Szene,
+die ortsgebundene Fehldetektionen unterdrückt; eine zeitliche Verfolgung
+der Objekte über mehrere Aufnahmen (Tracking); der Umbau des Merges auf
+eine einmalig kalibrierte Ausrichtung für den Live-Betrieb; und vor
+allem Daten aus weiteren Szenen mit mehr Objektvielfalt.
+
+Zwei kleine Fragen können nur vor Ort geklärt werden: Wie groß ist das
+Zielauto wirklich (zum Abgleich mit der Label-Box von 4,95 × 1,95
+Metern)? Und was steht an den beiden Stellen nahe der Sensoren, an
+denen das Netz beharrlich Fahrräder meldet — sind es vielleicht
+tatsächlich abgestellte Fahrräder, die nie gelabelt wurden?
