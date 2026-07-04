@@ -78,14 +78,83 @@ weiterhin echtzeitfähiger Verarbeitung.
 
 | View | mAP | AP30 p/b/c | AP60 p/b/c |
 |---|---|---|---|
-| os0 | 0.8412 | 0.863 / 0.982 / 0.997 | 0.654 / 0.496 / 0.908 |
-| os1 | 0.8570 | 0.902 / 0.863 / 0.909 | 0.623 / 0.791 / 0.909 |
+| os0 | 0.8412 | 0.863 / 0.982 / 0.997 | 0.654 / 0.496 / 0.907 |
+| os1 | 0.8570 | 0.901 / 0.863 / 0.909 | 0.623 / 0.791 / 0.909 |
 
 (p = person, b = bicycle, c = car. os0-car 0.997: kleinerer Testbereich
 mit fast nur Parkern — nicht direkt mit merged vergleichbar.)
 
 **View-Ranking bei einheitlicher Konfiguration: merged (0.8916) >
 os1 (0.8570) > os0 (0.8412).**
+
+### Vollständige Tabellen über alle IoU-Schwellen (AP30/40/50/60)
+
+Die Aufgabenstellung sieht die AP-Werte über alle vier IoU-Schwellen
+vor; die kompakten Tabellen oben zeigen nur die Eckwerte AP30/AP60.
+Hier die vollständigen Werte (Klassen-mAP = Mittel über die vier
+Schwellen, Gesamt-mAP = Mittel über die drei Klassen-mAPs):
+
+| Modell | Klasse | AP30 | AP40 | AP50 | AP60 | Klassen-mAP |
+|---|---|---|---|---|---|---|
+| merged Baseline | person | 0.900 | 0.900 | 0.894 | 0.772 | 0.867 |
+| (mAP 0.8880) | bicycle | 0.935 | 0.935 | 0.935 | 0.856 | 0.915 |
+| | car | 0.909 | 0.907 | 0.897 | 0.816 | 0.882 |
+| **merged GT-Sampling** | person | 0.903 | 0.901 | 0.892 | 0.758 | 0.863 |
+| (mAP **0.8916**) | bicycle | 0.972 | 0.972 | 0.972 | 0.883 | 0.950 |
+| | car | 0.909 | 0.909 | 0.815 | 0.814 | 0.862 |
+| os0 Baseline | person | 0.873 | 0.866 | 0.852 | 0.669 | 0.815 |
+| (mAP 0.8514) | bicycle | 0.837 | 0.829 | 0.749 | 0.551 | 0.742 |
+| | car | 0.997 | 0.997 | 0.997 | 0.997 | 0.997 |
+| os0 GT-Sampling | person | 0.863 | 0.863 | 0.837 | 0.654 | 0.804 |
+| (mAP 0.8412) | bicycle | 0.982 | 0.848 | 0.655 | 0.496 | 0.745 |
+| | car | 0.997 | 0.997 | 0.997 | 0.907 | 0.974 |
+| os1 Baseline | person | 0.907 | 0.902 | 0.891 | 0.722 | 0.855 |
+| (mAP 0.8457) | bicycle | 0.804 | 0.804 | 0.804 | 0.681 | 0.773 |
+| | car | 0.909 | 0.909 | 0.909 | 0.909 | 0.909 |
+| os1 GT-Sampling | person | 0.901 | 0.898 | 0.860 | 0.623 | 0.821 |
+| (mAP 0.8570) | bicycle | 0.863 | 0.863 | 0.851 | 0.791 | 0.842 |
+| | car | 0.909 | 0.909 | 0.909 | 0.909 | 0.909 |
+| merged Oversampling¹ | person | 0.901 | 0.901 | 0.896 | 0.856 | 0.888 |
+| (mAP 0.8788) | bicycle | 0.890 | 0.890 | 0.890 | 0.881 | 0.888 |
+| | car | 0.909 | 0.908 | 0.812 | 0.812 | 0.860 |
+| merged GT-S. + z-Filter¹ | person | 0.904 | 0.902 | 0.898 | 0.754 | 0.864 |
+| (mAP 0.8881) | bicycle | 0.942 | 0.942 | 0.942 | 0.942 | 0.942 |
+| | car | 0.909 | 0.906 | 0.810 | 0.809 | 0.859 |
+
+¹ Ablationsvarianten, nicht übernommen (Begründung: `ABLATION_BICYCLE.md`
+bzw. `DATA_AUDIT.md` §11).
+
+Lesehilfe: Werte, die über die Schwellen konstant bleiben (z. B. os1
+car durchgehend 0.909), zeigen präzise Lokalisierung — jede gefundene
+Box überlappt so gut, dass sie selbst die strengste Schwelle besteht.
+Abfallende Werte (z. B. os0-gts bicycle 0.982 → 0.496) zeigen, dass
+Objekte zwar gefunden, aber ungenau umboxt werden.
+
+### Einordnung gegenüber der Vorgängerarbeit (nur Vortraining, kein Finetuning)
+
+Die Masterarbeit von T. Pagel (2025, `Abschlussarbeit_354883.pdf`)
+hat auf **denselben Aufnahmen** (gleiche Sensoren, gleiche Szene,
+gleiche Merge-Pipeline) vortrainierte PointPillars-Netze **ohne
+Finetuning** evaluiert. Ihre Ergebnisse (mAP über IoU 0.3–0.6):
+
+| Vortraining | merged | os0 | os1 |
+|---|---|---|---|
+| KITTI | 0.058 | 0.019 | 0.039 |
+| LUMPI | 0.045 | 0.016 | 0.014 |
+| OSDaR23 | ~0.0 | 0.0 | 0.0 |
+| **diese Arbeit (KITTI + Finetuning)** | **0.8916** | 0.8412 | 0.8570 |
+
+Zwei Einschränkungen zur Vergleichbarkeit: Die Vorgängerarbeit nutzte
+automatisch erzeugte Labels (Hintergrundsubtraktion + Clustering, ohne
+manuelle Korrektur) und eine eigene Metrik-Implementierung — der
+Vergleich ist daher ein Größenordnungs-, kein Präzisionsvergleich.
+Die Aussage ist trotzdem eindeutig: **Das Finetuning auf den
+Szenendaten ist der entscheidende Schritt** (Faktor ~15 gegenüber dem
+besten vortrainierten Netz). Konsistent über beide Arbeiten ist der
+Fusionsbefund: Schon ohne Finetuning war merged um Faktor 1.4–3.4
+besser als die Einzelsensoren; nach dem Finetuning zeigt sich der
+Fusionsvorteil konzentriert am bewegten Zielobjekt (os1 0.09 →
+merged 0.90 beim dynamischen Auto).
 
 ### Nur dynamische Objekte (die eigentliche Zielaufgabe)
 
@@ -181,6 +250,21 @@ aus `merge_times.csv` je Experiment):
   einmal, nicht pro Frame); der verbleibende Merge (Transformation +
   Konkatenation) läge im Millisekundenbereich. Die 2.25 s sind also
   keine inhärente Latenz des Fusionsansatzes.
+- Querverweis: Die Vorgängerarbeit hat dieselbe Merge-Pipeline auf
+  einer Server-CPU (Xeon E5-2698 v4, 72 Kerne) mit ~0.5 s/Frame
+  gemessen — die Differenz zu unseren 2.25 s ist reine Hardware, was
+  die Einordnung "nicht inhärent" zusätzlich stützt.
+
+**Vorverarbeitungsentscheidungen (Bezug zur Aufgabenstellung):** Die
+Aufgabenstellung nennt "optional noise reduction or ceiling removal".
+Rauschreduktion ist enthalten (statistischer Ausreißerfilter im
+Merge-Schritt). Die **Garagendecke wurde bewusst nicht entfernt**: Da
+das Netz direkt auf den Szenendaten finetuned wird, lernt es die Decke
+als Hintergrund — anders als in der Vorgängerarbeit, deren rein
+outdoor-vortrainierte Netze (LUMPI/OSDaR23) von einer Deckenentfernung
+profitierten. Deren Befund, dass KITTI-basierte Netze mit
+Deckenentfernung sogar schlechter werden, stützt unsere Entscheidung,
+denn unser Ausgangs-Checkpoint ist der KITTI-Checkpoint.
 
 ## 3. Qualitative Analyse: typische Erfolge und Fehlermodi
 

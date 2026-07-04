@@ -190,6 +190,7 @@ RUNS = [
     ("merged baseline", "merged", latest("merged_test_results")),
     ("merged gtsample", "merged", latest("merged_gtsample_test_results")),
     ("merged bikeover", "merged", latest("merged_bikeover_test_results")),
+    ("merged gts zfilt", "merged", latest("merged_gtsample_zfilt_test_results")),
     ("os0", "os0", latest("os0_test_results")),
     ("os0 gtsample", "os0", latest("os0_gtsample_test_results")),
     ("os1", "os1", latest("os1_test_results")),

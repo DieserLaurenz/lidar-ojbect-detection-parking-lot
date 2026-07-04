@@ -309,6 +309,40 @@ springt auf 0,90.** Das ist die zentrale, experimentell abgesicherte
 Aussage der Arbeit — die Kombination beider Blickwinkel ist beim
 bewegten Objekt kein Luxus, sondern notwendig.
 
+### 9.4 Einordnung: der Vergleich mit der Vorgängerarbeit
+
+Zu genau diesem Versuchsaufbau gibt es eine Vorgängerarbeit: die
+Masterarbeit von Thea Pagel (2025, als PDF im Projektordner). Sie hat
+dieselben Aufnahmen aus der Tiefgarage verwendet — dieselben zwei
+Sensoren, dieselbe Szene, dieselbe Software zum Zusammenfügen der
+Punktwolken. Der entscheidende Unterschied: Sie hat die neuronalen
+Netze **nicht auf den Szenendaten nachtrainiert**, sondern nur fertige,
+auf fremden Datensätzen vortrainierte Netze auf die Aufnahmen
+angewendet.
+
+Das Ergebnis dieser Vorgehensweise war ernüchternd. Ihr bestes Netz
+(vortrainiert auf dem Straßenverkehrsdatensatz KITTI) erreichte auf
+den fusionierten Daten einen Gesamtwert von 0,058 — auf einer Skala,
+auf der 1,0 perfekt wäre. Unsere Variante desselben Netzes erreicht
+nach dem Nachtraining auf denselben Daten 0,8916. Der Unterschied
+beträgt also etwa den Faktor 15. Fairerweise muss man dazusagen, dass
+die beiden Zahlen nicht bis auf die Nachkommastelle vergleichbar sind:
+Die Vorgängerarbeit hat ihre Referenz-Boxen automatisch erzeugt (ohne
+manuelle Korrektur, wie wir sie durchgeführt haben) und eine eigene
+Variante der Messmethode verwendet. An der Größenordnung des
+Unterschieds ändert das aber nichts.
+
+Daraus folgt die vielleicht wichtigste praktische Lehre des
+Gesamtprojekts: **Ein vortrainiertes Netz einfach auf eine neue Szene
+loszulassen, funktioniert nicht — das Nachtraining auf Daten aus der
+Zielszene ist der entscheidende Schritt.** Interessant ist außerdem,
+dass beide Arbeiten unabhängig voneinander denselben Fusionsbefund
+liefern: Schon bei der Vorgängerarbeit war die Fusion beider Sensoren
+um den Faktor 1,4 bis 3,4 besser als jeder Einzelsensor. Nach dem
+Nachtraining bleibt dieser Vorteil bestehen und zeigt sich am
+deutlichsten dort, wo er am wichtigsten ist: beim bewegten Auto
+(Einzelsensor os1: 0,09 — Fusion: 0,90).
+
 ## 10. Die Vergleichsexperimente (Ablationen)
 
 Eine Ablation ist ein kontrolliertes Experiment, bei dem man genau
