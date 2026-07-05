@@ -8,7 +8,7 @@ Die Predictions liegen im KITTI-Trainingskoordinatensystem und werden
 hier zurueck ins rohe Sensor-Koordinatensystem transformiert
 (Inverse von exp_to_kitti.py: Rz(90deg), T=[30,0,-1.6], z bottom->center).
 
-Voraussetzung: predictions/predictions_<view>.json im Projekt-Root
+Voraussetzung: results/predictions/predictions_<view>.json im Projekt
 (Export vom GPU-Server, tools-Skript export_preds.py). Predictions
 existieren nur fuer Test-Frames (letzte ~10% jedes Experiments).
 
@@ -44,7 +44,7 @@ import open3d as o3d
 
 ROOT = Path(__file__).resolve().parent.parent
 EXPERIMENTS = ROOT / "data" / "2025_10_09" / "Experiment-Data" / "experiments"
-PREDICTIONS = ROOT / "predictions"
+PREDICTIONS = ROOT / "results" / "predictions"
 
 THETA = np.deg2rad(90)
 _c, _s = np.cos(THETA), np.sin(THETA)

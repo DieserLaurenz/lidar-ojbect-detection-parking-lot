@@ -339,7 +339,7 @@ Einzelframes hinweg.
 GT 4.95×1.95 m ist groß; wäre die GT-Box großzügig gelabelt, wäre ein
 Teil der "Schwäche" ein Label-Artefakt.
 
-**Qualitative Belege:** `figures_analysis/qualitative_bev.png`
+**Qualitative Belege:** `figures/qualitative_bev.png`
 (Skript `tools/analysis_tools/exp_viz_bev.py`): os1 ohne gültige
 Detektion am dynamischen Auto vs. merged mit Treffer im selben Frame,
 dazu Fahrrad- und Person-Beispiele.
@@ -348,7 +348,7 @@ dazu Fahrrad- und Person-Beispiele.
 
 Auf dem merged-Test-Split gibt es 42 bicycle-Predictions (score ≥ 0.3)
 ohne GT-Rad im Umkreis von 2 m. Untersuchung
-(`figures_analysis/fp_bike_spots.png`):
+(`figures/fp_bike_spots.png`):
 
 - **Kein GT-Sampling-Artefakt:** Die Baseline (ohne GT-Sampling) hat
   praktisch gleich viele (40) an denselben Orten.

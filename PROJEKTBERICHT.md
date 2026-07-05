@@ -8,10 +8,10 @@ gefunden und behoben wurden, welche Ergebnisse am Ende herauskamen und
 welche Schlüsse man daraus ziehen kann. Fachbegriffe werden bei ihrer
 ersten Verwendung immer direkt erklärt, sodass der Bericht auch ohne
 Vorwissen verständlich ist. Wer tiefer einsteigen möchte, findet alle
-Detailbelege in drei weiteren Dokumenten: `DATA_AUDIT.md` enthält die
+Detailbelege in drei weiteren Dokumenten: `results/DATA_AUDIT.md` enthält die
 technische Prüfung der Daten und alle Detailanalysen,
-`ABLATION_BICYCLE.md` beschreibt die Vergleichsexperimente, und
-`RESULTS.md` ist der kompakte Ergebnisreport mit allen Tabellen.
+`results/ABLATION_BICYCLE.md` beschreibt die Vergleichsexperimente, und
+`results/RESULTS.md` ist der kompakte Ergebnisreport mit allen Tabellen.
 
 ---
 
@@ -373,7 +373,7 @@ etwas lernen könnte. (Zur Transparenz: Dieser Trainingslauf stürzte bei
 Epoche 37 ab, weil während des laufenden Trainings der Messcode auf dem
 Server ausgetauscht wurde — ein vermeidbarer Bedienfehler. Der Lauf
 wurde vom letzten Zwischenstand fortgesetzt; die Einschränkung ist in
-`ABLATION_BICYCLE.md` dokumentiert und ändert nichts am negativen
+`results/ABLATION_BICYCLE.md` dokumentiert und ändert nichts am negativen
 Fazit.)
 
 **Experiment C: Klassenübergreifende Duplikat-Entfernung — wirkungslos,
@@ -495,7 +495,7 @@ entstanden:
   gleichzeitig sehen kann. Die Anzeigeschwelle lässt sich pro
   Objektklasse einstellen, und mit der Option `--full` lassen sich
   ganze Experimente statt nur der Testabschnitte betrachten.
-- **Abbildungen** für die Thesis (im Ordner `figures_analysis/`):
+- **Abbildungen** für die Thesis (im Ordner `results/figures/`):
   Beispielszenen aus der Vogelperspektive (unter anderem der direkte
   Vergleich "os1 verfehlt das Auto / merged trifft es" im selben
   Moment), Genauigkeits-Vollständigkeits-Kurven (Precision-Recall) und

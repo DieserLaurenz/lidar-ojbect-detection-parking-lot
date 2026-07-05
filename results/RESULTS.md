@@ -132,7 +132,7 @@ Objekte zwar gefunden, aber ungenau umboxt werden.
 
 ### Einordnung gegenüber der Vorgängerarbeit (nur Vortraining, kein Finetuning)
 
-Die Masterarbeit von T. Pagel (2025, `Abschlussarbeit_354883.pdf`)
+Die Masterarbeit von T. Pagel (2025, `docs/Abschlussarbeit_354883.pdf`)
 hat auf **denselben Aufnahmen** (gleiche Sensoren, gleiche Szene,
 gleiche Merge-Pipeline) vortrainierte PointPillars-Netze **ohne
 Finetuning** evaluiert. Ihre Ergebnisse (mAP über IoU 0.3–0.6):
@@ -268,7 +268,7 @@ denn unser Ausgangs-Checkpoint ist der KITTI-Checkpoint.
 
 ## 3. Qualitative Analyse: typische Erfolge und Fehlermodi
 
-Abbildungen in `figures_analysis/`, interaktiv nachvollziehbar mit
+Abbildungen in `figures/`, interaktiv nachvollziehbar mit
 `experiment/prediction_viewer.py` (auch `--full` für ganze
 Experimente; klassenweise Score-Schwellen mit Tasten 1/2/3 + `+`/`−`).
 
