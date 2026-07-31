@@ -1,5 +1,16 @@
 # Evaluationsreport: PointPillars auf den Kreuzungs-Experimenten
 
+> **Überholt als Hauptbewertung (Nachtrag 11.07.2026):** Dieser Report
+> dokumentiert den alten temporalen 80/10/10-Split. Die dabei zentrale Aussage
+> `os1 dynamic car AP30=0.09 → merged=0.90` war durch die letzten
+> Fahrzeugpositionen im Testsplit verursacht und darf nicht mehr als
+> allgemeiner Fusionsnachweis verwendet werden. Maßgeblich ist die neue
+> experiment-held-out Cross-Validation in
+> [`CROSS_VALIDATION_RESULTS.md`](CROSS_VALIDATION_RESULTS.md): dynamisches
+> Auto AP30 gepoolt merged=0.877, os0=0.885, os1=0.831; aggregierter Fold-mAP
+> merged=0.798, os0=0.777, os1=0.770. Der historische Inhalt unten bleibt zur
+> Nachvollziehbarkeit erhalten.
+
 **Stand:** 2026-07-03. Alle Zahlen: Test-Split (temporal, letzte ~10 %
 jedes Experiments), korrigierte datensatzweite Metrik (Herleitung und
 Lesehilfe: `DATA_AUDIT.md`, Anhang). Modelle: PointPillars, finetuned

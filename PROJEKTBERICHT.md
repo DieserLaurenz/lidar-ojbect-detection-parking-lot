@@ -1,5 +1,18 @@
 # Projektbericht: Multisensor-LiDAR-Objekterkennung an einer Kreuzung
 
+> **Nachtrag vom 11. Juli 2026:** Die im Bericht verwendete temporale
+> 80/10/10-Auswertung koppelte den Testsplit an die letzten Objektpositionen.
+> Die Schlussfolgerung, os1 könne das bewegte Auto praktisch nicht erkennen
+> (`AP30=0.09`), ist deshalb als allgemeine Aussage nicht haltbar. Eine neue
+> gepaarte 3-Fold-Cross-Validation hält jeweils komplette Experimente zurück.
+> Dort erreicht das dynamische Auto gepoolt AP30/AP60: merged 0.877/0.739,
+> os0 0.885/0.847, os1 0.831/0.783. Fusion erzielt weiterhin den besten
+> Gesamt-mAP (Fold-Mittel 0.798), ihr belastbarer Vorteil ist aber ausgewogene
+> Gesamtleistung und bessere Personen-/Fahrrad-Lokalisierung, nicht die
+> notwendige Rettung der Autoerkennung. Maßgeblicher Ergebnisreport:
+> `results/CROSS_VALIDATION_RESULTS.md`. Der alte Berichtstext bleibt als
+> Dokumentation des damaligen Auswertungsstands erhalten.
+
 **Masterarbeit — Stand: 3. Juli 2026.**
 
 Dieser Bericht erzählt von Anfang bis Ende, was in diesem Projekt

@@ -1,0 +1,91 @@
+{
+  "definition": "score >= threshold and no greedy same-class GT match at 3D IoU >= threshold",
+  "score_threshold": 0.3,
+  "iou_threshold": 0.3,
+  "views": {
+    "merged": {
+      "frames": 2122,
+      "classes": {
+        "person": {
+          "frames": 2122,
+          "considered_predictions": 3409,
+          "true_positives": 2899,
+          "false_positives": 510,
+          "frames_with_false_positive": 458
+        },
+        "bicycle": {
+          "frames": 2122,
+          "considered_predictions": 916,
+          "true_positives": 601,
+          "false_positives": 315,
+          "frames_with_false_positive": 283
+        },
+        "car": {
+          "frames": 2122,
+          "considered_predictions": 12695,
+          "true_positives": 12536,
+          "false_positives": 159,
+          "frames_with_false_positive": 149
+        }
+      },
+      "total_false_positives": 984,
+      "total_false_positives_per_100_frames": 46.37134778510839
+    },
+    "os0": {
+      "frames": 2122,
+      "classes": {
+        "person": {
+          "frames": 2122,
+          "considered_predictions": 3064,
+          "true_positives": 2116,
+          "false_positives": 948,
+          "frames_with_false_positive": 833
+        },
+        "bicycle": {
+          "frames": 2122,
+          "considered_predictions": 747,
+          "true_positives": 590,
+          "false_positives": 157,
+          "frames_with_false_positive": 156
+        },
+        "car": {
+          "frames": 2122,
+          "considered_predictions": 11539,
+          "true_positives": 11124,
+          "false_positives": 415,
+          "frames_with_false_positive": 364
+        }
+      },
+      "total_false_positives": 1520,
+      "total_false_positives_per_100_frames": 71.63053722902922
+    },
+    "os1": {
+      "frames": 2122,
+      "classes": {
+        "person": {
+          "frames": 2122,
+          "considered_predictions": 3163,
+          "true_positives": 2834,
+          "false_positives": 329,
+          "frames_with_false_positive": 308
+        },
+        "bicycle": {
+          "frames": 2122,
+          "considered_predictions": 842,
+          "true_positives": 470,
+          "false_positives": 372,
+          "frames_with_false_positive": 356
+        },
+        "car": {
+          "frames": 2122,
+          "considered_predictions": 12065,
+          "true_positives": 11817,
+          "false_positives": 248,
+          "frames_with_false_positive": 207
+        }
+      },
+      "total_false_positives": 949,
+      "total_false_positives_per_100_frames": 44.72196041470311
+    }
+  }
+}

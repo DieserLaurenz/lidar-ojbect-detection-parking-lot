@@ -25,6 +25,9 @@ mmdetection3d/data/
 mmdetection3d/results/
 mmdetection3d/work_dirs/
 
+# Portable CV point-cloud exports exceed GitHub's per-file size limit.
+results/crossval/*_points.tar.gz
+
 # Keep experiment metadata and labels, especially manual labels.
 !data/
 !data/2025_10_09/

@@ -6,19 +6,28 @@ Evaluiert werden die Einzelsensor-Sichten (`os0`, `os1`) und die fusionierte
 Sicht (`merged`) auf den Klassen **person, bicycle, car**.
 Aufgabenstellung: `docs/Project Topic.txt`.
 
-## Kernergebnis
+## Kernergebnis (Experiment-Cross-Validation, 11.07.2026)
 
-| View | Test-mAP (AP30–60) | Konfiguration |
-|---|---|---|
-| **merged** | **0.8916** | Finetuning + GT-Sampling |
-| os1 | 0.8570 | Finetuning + GT-Sampling |
-| os0 | 0.8514 | Finetuning (Baseline) |
+Der frühere temporale 80/10/10-Split war mit der Objektposition vermischt und
+ist als Hauptbewertung abgelöst. Maßgeblich ist jetzt eine gepaarte
+3-Fold-Cross-Validation mit je einem vollständig ungesehenen Auto-, Fahrrad-
+und Personenexperiment pro Fold.
 
-Die Sensorfusion gewinnt durchgängig; beim dynamischen Fahrzeug ist sie
-entscheidend (os1 allein: AP30 0.09 — merged: 0.90). Details, alle
-AP30/40/50/60-Tabellen und Fehleranalysen: [`results/RESULTS.md`](results/RESULTS.md).
+| View | Fold-mAP Mittel ± Std. | Gepooltes OOF-mAP | Konfiguration |
+|---|---:|---:|---|
+| **merged** | **0.7979 ± 0.0371** | **0.789** | Finetuning + GT-Sampling |
+| os0 | 0.7772 ± 0.0181 | 0.759 | Finetuning + GT-Sampling |
+| os1 | 0.7703 ± 0.0272 | 0.765 | Finetuning + GT-Sampling |
 
-**Trainierte Modelle (Checkpoints):** [GitHub Release v1.0](https://github.com/DieserLaurenz/lidar-ojbect-detection-parking-lot/releases/tag/v1.0)
+Fusion liefert die beste ausgewogene Gesamtleistung, ist aber nicht für die
+Autoerkennung notwendig. Dynamisches Auto AP30/AP60 (gepoolt): merged
+0.877/0.739, os0 0.885/0.847, os1 0.831/0.783. Der alte Befund
+`os1=0.09 → merged=0.90` war ein Splitartefakt. Vollständige Ergebnisse:
+[`results/CROSS_VALIDATION_RESULTS.md`](results/CROSS_VALIDATION_RESULTS.md).
+
+**Trainierte Modelle:** Die bisherige GitHub Release v1.0 enthält die alten
+Temporal-Split-Modelle. Die neun Cross-Validation-Checkpoints liegen derzeit
+auf dem DCAITI-Server unter `~/runs/pointpillars_crossval/`.
 
 ## Projektstruktur
 

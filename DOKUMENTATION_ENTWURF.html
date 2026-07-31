@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multisensor-LiDAR-Objekterkennung – Projektdokumentation</title>
+  <style>
+@page {
+  size: A4;
+  margin: 19mm 18mm 21mm 18mm;
+
+  @top-left {
+    content: "MULTISENSOR-LIDAR-OBJEKTERKENNUNG";
+    color: #6c7b86;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 7.5pt;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+  }
+
+  @top-right {
+    content: "PROJEKTDOKUMENTATION · ENTWURF 0.1";
+    color: #8a969e;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 7.5pt;
+    letter-spacing: 0.04em;
+  }
+
+  @bottom-left {
+    content: "DCAITI · 16. JULI 2026";
+    color: #8a969e;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 7.5pt;
+    letter-spacing: 0.05em;
+  }
+
+  @bottom-right {
+    content: counter(page);
+    color: #1e607b;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+}
+
+@page cover {
+  margin: 0;
+
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+}
+
+:root {
+  --ink: #172733;
+  --muted: #60727e;
+  --hair: #d9e2e7;
+  --soft: #eef4f6;
+  --navy: #123247;
+  --blue: #1e607b;
+  --teal: #16847f;
+  --cyan: #58b9bf;
+  --amber: #d99032;
+  --paper: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 10.4pt;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: "Segoe UI", "Aptos", Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.52;
+  hyphens: auto;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.cover {
+  page: cover;
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  overflow: hidden;
+  color: white;
+  background:
+    radial-gradient(circle at 88% 15%, rgba(88,185,191,.27) 0 13mm, transparent 13.3mm),
+    radial-gradient(circle at 88% 15%, transparent 0 24mm, rgba(88,185,191,.13) 24.2mm 24.7mm, transparent 25mm),
+    linear-gradient(142deg, #0e2b3e 0%, #174c62 58%, #167d7b 100%);
+  break-after: page;
+}
+
+.cover::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10mm;
+  height: 100%;
+  background: linear-gradient(180deg, var(--cyan), var(--teal) 58%, var(--amber));
+}
+
+.cover::after {
+  content: "";
+  position: absolute;
+  right: -27mm;
+  bottom: -39mm;
+  width: 125mm;
+  height: 125mm;
+  border: 1px solid rgba(255,255,255,.18);
+  transform: rotate(18deg);
+}
+
+.cover-inner {
+  position: absolute;
+  inset: 0;
+  padding: 35mm 24mm 24mm 31mm;
+  display: flex;
+  flex-direction: column;
+}
+
+.cover-kicker {
+  color: #9de2e0;
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.cover-rule {
+  width: 33mm;
+  height: 1.5mm;
+  margin: 9mm 0 14mm;
+  background: var(--cyan);
+}
+
+.cover h1 {
+  max-width: 145mm;
+  margin: 0;
+  color: white;
+  font-size: 31pt;
+  font-weight: 720;
+  letter-spacing: -.035em;
+  line-height: 1.08;
+}
+
+.cover-subtitle {
+  max-width: 125mm;
+  margin-top: 9mm;
+  color: rgba(255,255,255,.82);
+  font-size: 15pt;
+  font-weight: 350;
+  line-height: 1.35;
+}
+
+.cover-summary {
+  max-width: 132mm;
+  margin-top: 23mm;
+  padding-left: 6mm;
+  border-left: 1.2mm solid rgba(88,185,191,.86);
+  color: rgba(255,255,255,.78);
+  font-size: 10.5pt;
+  line-height: 1.55;
+}
+
+.cover-meta {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4mm 14mm;
+  max-width: 138mm;
+  padding-top: 7mm;
+  border-top: .25mm solid rgba(255,255,255,.26);
+}
+
+.meta-label {
+  display: block;
+  margin-bottom: 1.2mm;
+  color: #9de2e0;
+  font-size: 7.2pt;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.meta-value {
+  color: rgba(255,255,255,.9);
+  font-size: 9.5pt;
+}
+
+.toc-page {
+  break-after: page;
+}
+
+.toc-title {
+  margin: 0 0 8mm;
+  color: var(--navy);
+  font-size: 23pt;
+  line-height: 1.15;
+  letter-spacing: -.025em;
+}
+
+.toc-title::after {
+  content: "";
+  display: block;
+  width: 25mm;
+  height: 1.1mm;
+  margin-top: 5mm;
+  background: var(--teal);
+}
+
+.toc ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toc > ul > li {
+  margin: 0;
+  padding: 2.2mm 0;
+  border-bottom: .22mm solid var(--hair);
+}
+
+.toc > ul > li > a {
+  color: var(--navy);
+  font-size: 10.3pt;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.toc ul ul {
+  margin-top: 1.5mm;
+  padding-left: 6mm;
+}
+
+.toc ul ul li {
+  display: inline;
+  color: var(--muted);
+  font-size: 8.5pt;
+}
+
+.toc ul ul li:not(:last-child)::after {
+  content: "  ·  ";
+  color: #a6b2b9;
+}
+
+.toc ul ul a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+main > h2 {
+  margin: 0 0 7mm;
+  padding-top: 4mm;
+  color: var(--navy);
+  border-top: 1.2mm solid var(--teal);
+  font-size: 22pt;
+  font-weight: 720;
+  letter-spacing: -.025em;
+  line-height: 1.15;
+  break-before: page;
+  break-after: avoid;
+}
+
+main > h2:first-child {
+  break-before: auto;
+}
+
+h3 {
+  margin: 8mm 0 3mm;
+  color: var(--blue);
+  font-size: 14.5pt;
+  font-weight: 700;
+  line-height: 1.25;
+  break-after: avoid;
+}
+
+h4 {
+  margin: 6mm 0 2mm;
+  color: var(--teal);
+  font-size: 11.5pt;
+  font-weight: 700;
+  break-after: avoid;
+}
+
+p {
+  margin: 0 0 3.2mm;
+  orphans: 3;
+  widows: 3;
+}
+
+strong {
+  color: #102c3e;
+  font-weight: 700;
+}
+
+a {
+  color: var(--blue);
+  text-decoration-color: rgba(30,96,123,.35);
+  text-underline-offset: 1.5px;
+}
+
+ul, ol {
+  margin: 2mm 0 4mm;
+  padding-left: 6.5mm;
+}
+
+li {
+  margin: 1mm 0;
+  padding-left: 1mm;
+}
+
+li::marker {
+  color: var(--teal);
+  font-weight: 700;
+}
+
+blockquote {
+  margin: 5mm 0;
+  padding: 4mm 5mm 4mm 6mm;
+  color: #28414f;
+  background: linear-gradient(90deg, #edf6f6, #f7fafb);
+  border-left: 1.2mm solid var(--teal);
+  border-radius: 0 2mm 2mm 0;
+  break-inside: avoid;
+}
+
+blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+code {
+  padding: .15em .38em;
+  color: #16485f;
+  background: #edf3f5;
+  border-radius: 1mm;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: .87em;
+  overflow-wrap: anywhere;
+}
+
+pre {
+  margin: 4mm 0 5mm;
+  padding: 4mm 5mm;
+  color: #eaf2f4;
+  background: #173343;
+  border-left: 1mm solid var(--cyan);
+  border-radius: 1.5mm;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 8.3pt;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  break-inside: avoid;
+}
+
+pre code {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font-size: inherit;
+}
+
+.table-wrap {
+  margin: 4mm 0 5.5mm;
+  break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #223642;
+  font-size: 8.6pt;
+  line-height: 1.34;
+}
+
+thead {
+  display: table-header-group;
+}
+
+tr {
+  break-inside: avoid;
+}
+
+th {
+  padding: 2.5mm 2.2mm;
+  color: white;
+  background: var(--navy);
+  border: .2mm solid var(--navy);
+  font-weight: 700;
+  text-align: left;
+  vertical-align: bottom;
+}
+
+td {
+  padding: 2.1mm 2.2mm;
+  border: .2mm solid #d6e0e5;
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) td {
+  background: #f2f6f7;
+}
+
+tbody tr:first-child td {
+  border-top-color: #b9cbd3;
+}
+
+hr {
+  margin: 8mm 0;
+  border: 0;
+  border-top: .25mm solid var(--hair);
+}
+
+.lead {
+  margin-bottom: 7mm;
+  color: #3d5664;
+  font-size: 11.2pt;
+  line-height: 1.58;
+}
+
+.source-note {
+  margin-top: 10mm;
+  padding-top: 3mm;
+  color: #84919a;
+  border-top: .25mm solid var(--hair);
+  font-size: 7.8pt;
+}
+
+@media screen {
+  body {
+    max-width: 210mm;
+    margin: 0 auto;
+    box-shadow: 0 0 24px rgba(15,38,52,.18);
+  }
+
+  .toc-page, main {
+    padding: 19mm 18mm 21mm;
+  }
+}
+
+@media print {
+  .toc-page, main {
+    padding: 0;
+  }
+}
+</style>
+</head>
+<body>
+  <section class="cover">
+    <div class="cover-inner">
+      <div class="cover-kicker">Technische und wissenschaftliche Dokumentation</div>
+      <div class="cover-rule"></div>
+      <h1>Multisensor-LiDAR-Objekterkennung in einer Tiefgarage</h1>
+      <div class="cover-subtitle">Training, Cross-Validation und Bewertung von
+        PointPillars und CenterPoint auf zwei Einzelsensoransichten und einer
+        fusionierten Punktwolke</div>
+      <div class="cover-summary">Experiment-held-out 3-Fold-Cross-Validation ·
+        Person, Fahrrad und Auto · Vergleich von os0, os1 und merged ·
+        Fehleranalyse und Laufzeiteinordnung</div>
+      <div class="cover-meta">
+        <div><span class="meta-label">Projekt</span><span class="meta-value">Multisensor LiDAR 3D Object Detection</span></div>
+        <div><span class="meta-label">Dokumentstatus</span><span class="meta-value">Erster Entwurf · Version 0.1</span></div>
+        <div><span class="meta-label">Stand</span><span class="meta-value">16. Juli 2026</span></div>
+        <div><span class="meta-label">Hauptmodell</span><span class="meta-value">PointPillars · KITTI-Finetuning</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="toc-page">
+    <h1 class="toc-title">Inhaltsverzeichnis</h1>
+    <nav class="toc"><div class="toc">
+<ul>
+<li><a href="#kurzfassung">Kurzfassung</a></li>
+<li><a href="#1-aufgabenstellung-und-forschungsfragen">1. Aufgabenstellung und Forschungsfragen</a></li>
+<li><a href="#2-datengrundlage">2. Datengrundlage</a><ul>
+<li><a href="#21-sensoraufbau-und-ansichten">2.1 Sensoraufbau und Ansichten</a></li>
+<li><a href="#22-aufgezeichnete-experimente">2.2 Aufgezeichnete Experimente</a></li>
+<li><a href="#23-annotationen">2.3 Annotationen</a></li>
+</ul>
+</li>
+<li><a href="#3-datenaufbereitung-und-sensorfusion">3. Datenaufbereitung und Sensorfusion</a><ul>
+<li><a href="#31-registrierung-und-merge">3.1 Registrierung und Merge</a></li>
+<li><a href="#32-konvertierung-in-das-trainingsformat">3.2 Konvertierung in das Trainingsformat</a></li>
+</ul>
+</li>
+<li><a href="#4-modelle-und-training">4. Modelle und Training</a><ul>
+<li><a href="#41-pointpillars">4.1 PointPillars</a></li>
+<li><a href="#42-klassenungleichgewicht-und-gt-sampling">4.2 Klassenungleichgewicht und GT-Sampling</a></li>
+<li><a href="#43-architekturvergleich-mit-centerpoint">4.3 Architekturvergleich mit CenterPoint</a></li>
+</ul>
+</li>
+<li><a href="#5-evaluationsprotokoll">5. Evaluationsprotokoll</a><ul>
+<li><a href="#51-warum-der-fruhere-temporale-split-ersetzt-wurde">5.1 Warum der frühere temporale Split ersetzt wurde</a></li>
+<li><a href="#52-experiment-held-out-cross-validation">5.2 Experiment-held-out Cross-Validation</a></li>
+<li><a href="#53-metriken">5.3 Metriken</a></li>
+<li><a href="#54-fold-mittel-und-gepoolte-out-of-fold-auswertung">5.4 Fold-Mittel und gepoolte Out-of-Fold-Auswertung</a></li>
+<li><a href="#55-offizielle-und-labelbasierte-bewegt-statisch-auswertung">5.5 Offizielle und labelbasierte Bewegt-/Statisch-Auswertung</a></li>
+</ul>
+</li>
+<li><a href="#6-ergebnisse">6. Ergebnisse</a><ul>
+<li><a href="#61-gesamtleistung-von-pointpillars">6.1 Gesamtleistung von PointPillars</a></li>
+<li><a href="#62-bewegte-objekte">6.2 Bewegte Objekte</a></li>
+<li><a href="#63-warum-ist-fahrrad-ap30-bei-os0-hoher">6.3 Warum ist Fahrrad-AP30 bei os0 höher?</a></li>
+<li><a href="#64-offizielle-dynamische-auswertung-und-ap60-artefakt">6.4 Offizielle dynamische Auswertung und AP60-Artefakt</a></li>
+<li><a href="#65-vergleich-zu-centerpoint">6.5 Vergleich zu CenterPoint</a></li>
+</ul>
+</li>
+<li><a href="#7-qualitative-fehleranalyse">7. Qualitative Fehleranalyse</a><ul>
+<li><a href="#71-definition-der-geisterboxen">7.1 Definition der Geisterboxen</a></li>
+<li><a href="#72-plausible-ursachen">7.2 Plausible Ursachen</a></li>
+<li><a href="#73-praktische-gegenmanahmen">7.3 Praktische Gegenmaßnahmen</a></li>
+</ul>
+</li>
+<li><a href="#8-laufzeit">8. Laufzeit</a><ul>
+<li><a href="#81-modellinferenz">8.1 Modellinferenz</a></li>
+<li><a href="#82-merge-zeit-und-ende-zu-ende-einordnung">8.2 Merge-Zeit und Ende-zu-Ende-Einordnung</a></li>
+</ul>
+</li>
+<li><a href="#9-gultigkeit-und-grenzen">9. Gültigkeit und Grenzen</a><ul>
+<li><a href="#91-interne-gultigkeit">9.1 Interne Gültigkeit</a></li>
+<li><a href="#92-einschrankungen-der-aussagekraft">9.2 Einschränkungen der Aussagekraft</a></li>
+</ul>
+</li>
+<li><a href="#10-schlussfolgerung">10. Schlussfolgerung</a></li>
+<li><a href="#11-reproduzierbarkeit-und-projektartefakte">11. Reproduzierbarkeit und Projektartefakte</a><ul>
+<li><a href="#111-zentrale-implementierungen">11.1 Zentrale Implementierungen</a></li>
+<li><a href="#112-primare-ergebnisquellen">11.2 Primäre Ergebnisquellen</a></li>
+<li><a href="#113-prasentationsmaterial">11.3 Präsentationsmaterial</a></li>
+</ul>
+</li>
+<li><a href="#12-offene-arbeiten">12. Offene Arbeiten</a></li>
+</ul>
+</div>
+</nav>
+  </section>
+
+  <main>
+    <h2 id="kurzfassung">Kurzfassung</h2>
+<p>In diesem Projekt wurde untersucht, wie gut vortrainierte neuronale Netze zur
+dreidimensionalen Objekterkennung auf eine fest installierte
+Zwei-Sensor-LiDAR-Anlage in einer Tiefgarage angepasst werden können. Die
+Zielklassen sind Person, Fahrrad und Auto. Verglichen wurden die beiden
+Einzelsensoransichten <code>os0</code> und <code>os1</code> sowie die aus beiden Sensoren erzeugte
+fusionierte Punktwolke <code>merged</code>.</p>
+<p>Als Hauptmodell wurde PointPillars eingesetzt und ausgehend von einem auf KITTI
+vortrainierten Drei-Klassen-Checkpoint für 50 Epochen auf den Projektdaten
+finetuned. Wegen des starken Klassenungleichgewichts wurde eine ausschließlich
+aus Trainingsdaten erzeugte GT-Sampling-Datenbank verwendet. Die abschließende
+Bewertung folgt einer vor der Ergebnissichtung eingefrorenen gepaarten
+3-Fold-Cross-Validation. In jedem Fold werden drei vollständige Experimente –
+je eines für Auto, Fahrrad und Person – als ungesehene Testaufnahmen
+zurückgehalten.</p>
+<p>PointPillars erreicht mit der fusionierten Ansicht in jedem Fold den höchsten
+Gesamt-mAP. Der Fold-Mittelwert beträgt <code>0,798 ± 0,037</code> für <code>merged</code>,
+<code>0,777 ± 0,018</code> für <code>os0</code> und <code>0,770 ± 0,027</code> für <code>os1</code>. Der Vorteil der Fusion
+ist damit nicht sehr groß, aber über alle Folds konsistent. Besonders deutlich
+ist er bei der Lokalisierung von Personen und Fahrrädern. Das bewegte Auto wird
+dagegen in allen drei Ansichten zuverlässig erkannt; <code>os0</code> ist bei AP30 sogar
+leicht besser. Die frühere Aussage, <code>os1</code> könne das bewegte Auto grundsätzlich
+nicht erkennen, beruhte auf einem positionskonfundierten temporalen Split und
+ist nicht mehr gültig.</p>
+<p>Die fusionierte Punktwolke benötigt auf der Evaluations-GPU ungefähr <code>85 ms</code>
+pro Modellinferenz, gegenüber <code>45 ms</code> für <code>os0</code> und <code>43 ms</code> für <code>os1</code>. Diese
+Messung belegt die 10-Hz-Fähigkeit der Modellinferenz, nicht jedoch die
+Echtzeitfähigkeit des vollständigen Fusionssystems. Die vorhandene
+Offline-Merge-Pipeline benötigt im Median <code>2,25 s</code> pro Frame, weil sie
+Rauschfilterung, Normalenschätzung und ICP für jeden Frame erneut ausführt. Ein
+optimierter Online-Merge mit einmalig bestimmter Extrinsik wurde noch nicht
+gemessen.</p>
+<h2 id="1-aufgabenstellung-und-forschungsfragen">1. Aufgabenstellung und Forschungsfragen</h2>
+<p>Die Ausgangssituation ist eine fest installierte Verkehrsszene in einer
+Tiefgarage, die gleichzeitig von zwei LiDAR-Sensoren aus unterschiedlichen
+Perspektiven erfasst wird. Das Projekt soll ein vortrainiertes
+3D-Objekterkennungsmodell auf diese Zielszene anpassen und den Nutzen der
+Multisensorfusion quantifizieren.</p>
+<p>Aus der Aufgabenstellung ergeben sich vier zentrale Forschungsfragen:</p>
+<ol>
+<li>Wie stark verbessert das Finetuning auf den projektspezifischen
+   Tiefgaragendaten ein vortrainiertes 3D-Detektionsmodell?</li>
+<li>Welche Unterschiede bestehen zwischen den Einzelsensoransichten <code>os0</code> und
+   <code>os1</code> und der fusionierten Ansicht <code>merged</code>?</li>
+<li>Zeigt sich ein Fusionsvorteil eher beim bloßen Finden eines Objekts oder bei
+   der räumlich präzisen Lokalisierung?</li>
+<li>Welche typischen Fehlerbilder und praktischen Laufzeitgrenzen besitzt die
+   entwickelte Verarbeitungskette?</li>
+</ol>
+<p>Der Fokus liegt auf drei Klassen: <code>person</code>, <code>bicycle</code> und <code>car</code>. Die
+wissenschaftliche Hauptaussage soll nicht aus einzelnen Beispielbildern oder
+einem einzigen zufälligen Split abgeleitet werden, sondern aus vollständig
+ungesehenen Aufnahmen unter einem für alle drei Ansichten gepaarten Protokoll.</p>
+<h2 id="2-datengrundlage">2. Datengrundlage</h2>
+<h3 id="21-sensoraufbau-und-ansichten">2.1 Sensoraufbau und Ansichten</h3>
+<p>Die Szene wird von zwei Ouster-LiDAR-Sensoren mit einer Aufnahmerate von
+ungefähr <code>10 Hz</code> erfasst. Jeder Sensor besitzt zunächst ein eigenes
+Koordinatensystem. Aus den Rohdaten werden drei Eingabevarianten erzeugt:</p>
+<ul>
+<li><code>os0</code>: transformierte Punktwolke des ersten Sensors,</li>
+<li><code>os1</code>: transformierte Punktwolke des zweiten Sensors,</li>
+<li><code>merged</code>: geometrisch registrierte und zusammengefügte Punktwolke beider
+  Sensoren.</li>
+</ul>
+<p>Eine Einzelsensor-Punktwolke enthält typischerweise ungefähr <code>105.000</code> Punkte,
+die fusionierte Punktwolke ungefähr <code>210.000</code> Punkte. Die Fusion erhöht damit
+die Punktdichte und ergänzt verdeckte Objektseiten, vergrößert aber zugleich
+die zu verarbeitende Datenmenge und den sichtbaren Hintergrund.</p>
+<h3 id="22-aufgezeichnete-experimente">2.2 Aufgezeichnete Experimente</h3>
+<p>Am 9. Oktober 2025 wurden neun Bewegungsaufnahmen in derselben Tiefgaragenszene
+erstellt:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Experimente</th>
+<th>Bewegte Zielklasse</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1–3</td>
+<td>Auto</td>
+</tr>
+<tr>
+<td>4–6</td>
+<td>Fahrrad</td>
+</tr>
+<tr>
+<td>7–9</td>
+<td>Person</td>
+</tr>
+</tbody>
+</table></div>
+<p>Neben dem jeweiligen bewegten Zielobjekt enthält die Szene zahlreiche
+statische Objekte, insbesondere geparkte Fahrzeuge. Diese statischen Objekte
+sind für eine realistische Detektion relevant, dürfen bei der Interpretation
+der Generalisierungsleistung aber nicht mit vollständig neuen Objektinstanzen
+verwechselt werden: Sie stehen über viele Aufnahmen hinweg an denselben
+Positionen.</p>
+<p>Für die abschließende Cross-Validation wird ausschließlich die Schnittmenge
+der gültigen Zeitstempel aller drei Ansichten verwendet. Dadurch erhält jede
+Ansicht dieselben <code>2.122</code> physischen Frames. Die Annotationen bleiben dennoch
+ansichtsspezifisch, weil ein Objekt je nach Sensorabdeckung und Sichtbarkeit
+nicht in jeder Ansicht in exakt denselben Frames annotiert ist.</p>
+<h3 id="23-annotationen">2.3 Annotationen</h3>
+<p>Die Ground-Truth-Annotationen bestehen aus orientierten dreidimensionalen
+Bounding Boxes. Für jede Box werden Klasse, Position, Abmessungen und
+Orientierung gespeichert. Zusätzlich kennzeichnet ein <code>static</code>-Attribut
+statische Objekte. Die finalen Labels wurden mit dem projektspezifischen
+Editor <code>experiment/manual_bbox_editor.py</code> geprüft und korrigiert.</p>
+<p>Die ansichtsspezifischen Annotationen sind für den regulären Betrieb sinnvoll,
+begrenzen aber einen direkten Klassenvergleich zwischen den Ansichten. Beim
+bewegten Auto ist die Vergleichsmenge exakt gepaart (<code>n=339</code> in jeder
+Ansicht). Bei Person und Fahrrad unterscheiden sich die GT-Zahlen. Beispielsweise
+enthält die gepoolte Fahrradauswertung <code>718</code> Instanzen für <code>merged</code>, <code>627</code> für
+<code>os0</code> und <code>581</code> für <code>os1</code>.</p>
+<p>Diese Differenz ist besonders wichtig für die Interpretation des Fahrrad-AP30:
+<code>os0</code> wird teilweise nur auf dem kürzeren, gut sichtbaren Abschnitt einer
+Trajektorie bewertet, während <code>merged</code> durch die größere Abdeckung zusätzliche
+und weiter entfernte Objektpositionen enthält. Der AP30-Vorsprung von <code>os0</code>
+darf deshalb nicht ohne Einschränkung als grundsätzliche Überlegenheit eines
+Einzelsensors interpretiert werden.</p>
+<h2 id="3-datenaufbereitung-und-sensorfusion">3. Datenaufbereitung und Sensorfusion</h2>
+<h3 id="31-registrierung-und-merge">3.1 Registrierung und Merge</h3>
+<p>Die Merge-Pipeline ist in <code>experiment/pcd_merge.py</code> implementiert. Sie führt
+für jedes Sensorpaar folgende Schritte aus:</p>
+<ol>
+<li>Laden der beiden Punktwolken und ihrer Intensitätswerte,</li>
+<li>Entfernen statistischer Ausreißer,</li>
+<li>Anwenden einer manuell bestimmten Vorabtransformation,</li>
+<li>Voxel-Downsampling und Normalenschätzung,</li>
+<li>Feinausrichtung durch Iterative Closest Point (ICP),</li>
+<li>Konkatenation der transformierten Punkte.</li>
+</ol>
+<p>Die beiden Sensoren sind fest montiert. Für einen späteren Online-Betrieb wäre
+deshalb eine einmalig auf einer geeigneten statischen Szene bestimmte
+Extrinsik vorzuziehen. Die aktuelle Implementierung berechnet die
+ICP-Korrektur dagegen für jeden Frame neu. Das ist für die Offline-Erzeugung
+der Projektdaten verwendbar, aber weder laufzeitoptimal noch als endgültige
+Live-Pipeline zu verstehen.</p>
+<h3 id="32-konvertierung-in-das-trainingsformat">3.2 Konvertierung in das Trainingsformat</h3>
+<p>MMDetection3D verarbeitet die Daten in einer KITTI-ähnlichen Repräsentation.
+Eigene Converter übertragen Punktwolken und Labels in dieses Format und
+erzeugen die benötigten Info-PKLs. Dabei wurden mehrere geometrische und
+metrische Fehler identifiziert und korrigiert:</p>
+<ul>
+<li>Der Boden lag durch eine fehlerhafte z-Transformation außerhalb des
+  vorgesehenen Punktwolkenbereichs. Dadurch wurden Boden und untere
+  Objektteile abgeschnitten.</li>
+<li>Der Label-Editor speichert die z-Koordinate im Boxzentrum, während die
+  Trainingspipeline an einer Stelle die Boxunterkante erwartete. Ohne
+  Korrektur schwebten die Boxen um eine halbe Objekthöhe zu hoch.</li>
+<li>Intensitäten wurden ursprünglich frameabhängig normiert. Sie werden nun mit
+  einer festen Skala verarbeitet, sodass gleiche Intensitätswerte über Frames
+  hinweg dieselbe Bedeutung besitzen.</li>
+<li>Die frühere Metrik mittelte AP pro Frame und wertete Frames ohne Instanz der
+  betrachteten Klasse als Null. Dies begrenzte insbesondere die Fahrrad-AP
+  künstlich. Die aktuelle Implementierung berechnet datensatzweite AP.</li>
+</ul>
+<p>Alle maßgeblichen Trainings- und Cross-Validation-Ergebnisse basieren auf dem
+korrigierten Datenstand. Frühere Resultate mit abgeschnittenem Boden,
+verschobenen Boxen oder der fehlerhaften Pro-Frame-Metrik sind nicht
+vergleichbar.</p>
+<h2 id="4-modelle-und-training">4. Modelle und Training</h2>
+<h3 id="41-pointpillars">4.1 PointPillars</h3>
+<p>PointPillars wandelt die unregelmäßige Punktwolke in ein Raster senkrechter
+Säulen, sogenannter Pillars, um. Innerhalb jedes Pillars werden die Punkte zu
+einem Merkmalsvektor verdichtet. Anschließend verarbeitet ein
+zweidimensionales Backbone die entstehende Bird's-Eye-View-Repräsentation und
+sagt orientierte 3D-Boxen voraus.</p>
+<p>Das Modell wird nicht von Grund auf neu trainiert. Ausgangspunkt ist ein auf
+KITTI vortrainierter Drei-Klassen-Checkpoint. Dieses Vorwissen wird durch
+Finetuning auf die Tiefgaragenszene angepasst. Für jeden Fold und jede Ansicht
+wird ein eigenes Modell trainiert. Insgesamt entstehen damit neun evaluierbare
+PointPillars-Foldmodelle.</p>
+<p>Die wesentlichen Trainingsparameter sind:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Festgelegter Wert</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Initialisierung</td>
+<td>KITTI-Drei-Klassen-Checkpoint</td>
+</tr>
+<tr>
+<td>Trainingsdauer</td>
+<td>50 Epochen</td>
+</tr>
+<tr>
+<td>Zufallsseed</td>
+<td>42</td>
+</tr>
+<tr>
+<td>Klassen</td>
+<td>Person, Fahrrad, Auto</td>
+</tr>
+<tr>
+<td>Checkpoint-Auswahl</td>
+<td>höchste Validierungs-mAP</td>
+</tr>
+<tr>
+<td>GT-Sampling</td>
+<td>Person 8, Fahrrad 10</td>
+</tr>
+</tbody>
+</table></div>
+<p>Für jede Fold-/Ansichtskombination wird die GT-Sampling-Datenbank ausschließlich
+aus deren Trainingsframes erzeugt. Test- und Validierungsobjekte können daher
+nicht durch Copy-Paste-Augmentierung in das Training gelangen.</p>
+<h3 id="42-klassenungleichgewicht-und-gt-sampling">4.2 Klassenungleichgewicht und GT-Sampling</h3>
+<p>In den Trainingsdaten kommen deutlich mehr Autos als Fahrräder vor; im
+früheren merged-Trainingssplit lag das Verhältnis ungefähr bei <code>22:1</code>.
+GT-Sampling fügt zusätzliche Personen- und Fahrradinstanzen aus anderen
+Trainingsframes in die aktuelle Trainingsszene ein. Dadurch steigt die
+Variabilität der seltenen Klassen, ohne Frames aus Validierung oder Test zu
+verwenden.</p>
+<p>Frühere kontrollierte Ablationen zeigten, dass GT-Sampling die
+Fahrrad-Detektion verbessert. Einfaches Frame-Oversampling war weniger
+wirksam. Ein Filter für Punkte unterhalb des Bodens reduzierte die
+Fehldetektionen nicht und verschlechterte andere Ergebnisse; er wurde deshalb
+nicht in die Standardpipeline übernommen.</p>
+<h3 id="43-architekturvergleich-mit-centerpoint">4.3 Architekturvergleich mit CenterPoint</h3>
+<p>Zusätzlich wurde CenterPoint unter demselben experiment-held-out Protokoll
+trainiert. CenterPoint ist im Gegensatz zum anchorbasierten PointPillars ein
+anchorfreier Detektor, der Objektzentren über eine Heatmap vorhersagt. Der
+Vergleich dient als Robustheitsprüfung der Modellwahl, nicht als nachträgliche
+Optimierung des Testprotokolls.</p>
+<p>Auch bei CenterPoint ist <code>merged</code> in jedem Fold die beste Ansicht. Die
+PointPillars-Foldmittel liegen jedoch in allen drei Ansichten höher:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ansicht</th>
+<th style="text-align: right;">PointPillars</th>
+<th style="text-align: right;">CenterPoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>merged</td>
+<td style="text-align: right;"><strong>0,798</strong></td>
+<td style="text-align: right;">0,751</td>
+</tr>
+<tr>
+<td>os0</td>
+<td style="text-align: right;"><strong>0,777</strong></td>
+<td style="text-align: right;">0,659</td>
+</tr>
+<tr>
+<td>os1</td>
+<td style="text-align: right;"><strong>0,770</strong></td>
+<td style="text-align: right;">0,723</td>
+</tr>
+</tbody>
+</table></div>
+<p>Der Abstand entsteht vor allem durch die schwächere Lokalisierung von
+CenterPoint bei strengeren IoU-Schwellen. Für die weitere Ergebnisdiskussion
+bleibt PointPillars deshalb das Hauptmodell.</p>
+<h2 id="5-evaluationsprotokoll">5. Evaluationsprotokoll</h2>
+<h3 id="51-warum-der-fruhere-temporale-split-ersetzt-wurde">5.1 Warum der frühere temporale Split ersetzt wurde</h3>
+<p>Die erste Auswertung verwendete innerhalb jedes Experiments eine zeitliche
+80/10/10-Aufteilung. Im Fall der Autoaufnahmen lagen die Testframes damit am
+Ende der Trajektorie. Splitzugehörigkeit und Objektposition waren gekoppelt.
+Der sehr niedrige damalige dynamische Auto-AP30 von <code>os1=0,09</code> beschrieb somit
+nicht die allgemeine Qualität von <code>os1</code>, sondern die Generalisierung auf
+diesen letzten räumlichen Trajektorienabschnitt.</p>
+<p>Dieser Befund darf nicht mehr als Hauptresultat verwendet werden. Die
+Cross-Validation mit vollständig zurückgehaltenen Experimenten ersetzt den
+temporalen Split als wissenschaftliche Hauptbewertung.</p>
+<h3 id="52-experiment-held-out-cross-validation">5.2 Experiment-held-out Cross-Validation</h3>
+<p>Das Protokoll wurde am 11. Juli 2026 vor der Sichtung der
+Cross-Validation-Testergebnisse eingefroren. Die drei Folds sind:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Fold</th>
+<th>Vollständig ungesehene Testexperimente</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>1 Auto, 4 Fahrrad, 7 Person</td>
+</tr>
+<tr>
+<td>2</td>
+<td>2 Auto, 5 Fahrrad, 8 Person</td>
+</tr>
+<tr>
+<td>3</td>
+<td>3 Auto, 6 Fahrrad, 9 Person</td>
+</tr>
+</tbody>
+</table></div>
+<p>Innerhalb der jeweils übrigen sechs Experimente werden die letzten zehn
+Prozent als Validierungsdaten verwendet. Die zehn davorliegenden Frames pro
+Trainingsexperiment werden als zeitlicher Guard ausgeschlossen. Die
+vollständigen Testexperimente werden weder für das Training noch für die
+Checkpoint-Auswahl verwendet.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Fold</th>
+<th style="text-align: right;">Training</th>
+<th style="text-align: right;">Validierung</th>
+<th style="text-align: right;">Test</th>
+<th style="text-align: right;">Guard</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td style="text-align: right;">1.239</td>
+<td style="text-align: right;">146</td>
+<td style="text-align: right;">677</td>
+<td style="text-align: right;">60</td>
+</tr>
+<tr>
+<td>2</td>
+<td style="text-align: right;">1.172</td>
+<td style="text-align: right;">137</td>
+<td style="text-align: right;">753</td>
+<td style="text-align: right;">60</td>
+</tr>
+<tr>
+<td>3</td>
+<td style="text-align: right;">1.227</td>
+<td style="text-align: right;">143</td>
+<td style="text-align: right;">692</td>
+<td style="text-align: right;">60</td>
+</tr>
+</tbody>
+</table></div>
+<p>Alle drei Ansichten erhalten pro Fold identische physische Zeitstempel. Damit
+ist der View-Vergleich zeitlich gepaart. Die bereits erwähnten
+ansichtsspezifischen Labels bleiben jedoch erhalten.</p>
+<h3 id="53-metriken">5.3 Metriken</h3>
+<p>Eine Vorhersage gilt als Treffer, wenn ihre dreidimensionale Intersection over
+Union (IoU) mit einer noch nicht zugeordneten Ground-Truth-Box derselben Klasse
+den betrachteten Schwellwert erreicht. Verwendet werden <code>AP30</code>, <code>AP40</code>, <code>AP50</code>
+und <code>AP60</code>:</p>
+<ul>
+<li>AP30 bewertet überwiegend, ob das Objekt ungefähr gefunden wurde.</li>
+<li>AP60 verlangt eine deutlich präzisere räumliche Lokalisierung.</li>
+<li>Der Klassen-mAP mittelt über AP30 bis AP60.</li>
+<li>Der Gesamt-mAP mittelt zusätzlich über die drei Klassen.</li>
+</ul>
+<p>Die AP wird als datensatzweite AP11 berechnet. Vorhersagen werden nach ihrem
+Konfidenzscore sortiert; Matching bleibt frameweise, die Precision-Recall-Kurve
+wird jedoch aus der gesamten Testmenge aufgebaut.</p>
+<h3 id="54-fold-mittel-und-gepoolte-out-of-fold-auswertung">5.4 Fold-Mittel und gepoolte Out-of-Fold-Auswertung</h3>
+<p>Die Fold-Ergebnisse sind die primäre Generalisierungsschätzung. Aus ihnen
+werden Mittelwert und Stichproben-Standardabweichung berechnet. Zusätzlich
+werden die Vorhersagen aller drei Testfolds zu einer gepoolten
+Out-of-Fold-Auswertung zusammengeführt. Dabei wurde jeder Frame genau von dem
+Modell vorhergesagt, für das sein vollständiges Experiment ungesehen war.</p>
+<p>Die gepoolte AP wird einmal auf der gemeinsamen Rangliste aller
+Out-of-Fold-Vorhersagen berechnet. Sie ist deshalb nicht identisch mit dem
+arithmetischen Mittel dreier AP-Werte. Da die Konfidenzscores der drei
+Foldmodelle unterschiedlich kalibriert sein können, ergänzt der gepoolte Wert
+die Foldanalyse, ersetzt sie aber nicht.</p>
+<h3 id="55-offizielle-und-labelbasierte-bewegt-statisch-auswertung">5.5 Offizielle und labelbasierte Bewegt-/Statisch-Auswertung</h3>
+<p>Die offizielle dynamische Teilbewertung ignoriert eine Vorhersage auf einem
+statischen Objekt nur, wenn diese am jeweiligen Evaluationsschwellwert
+ausreichend mit der statischen GT-Box überlappt. Eine etwas ungenau
+lokalisierte, aber eindeutig einem geparkten Auto zuordenbare Box kann dadurch
+bei AP60 als False Positive der dynamischen Rangliste erscheinen.</p>
+<p>Deshalb existiert zusätzlich eine benannte labelbasierte Variante. Sie nutzt
+das manuelle <code>static</code>-Attribut und ignoriert Vorhersagen auf Nichtzielobjekten
+bereits ab IoU <code>0,25</code>. Die regulären All-Object-Metriken bleiben dabei
+bit-identisch; nur die Teilranglisten für bewegte und statische Objekte ändern
+sich. Die offizielle Auswertung bleibt die Vergleichsreferenz, während die
+labelbasierte Variante die interpretierbare Analyse der bewegten Objekte
+liefert.</p>
+<h2 id="6-ergebnisse">6. Ergebnisse</h2>
+<h3 id="61-gesamtleistung-von-pointpillars">6.1 Gesamtleistung von PointPillars</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ansicht</th>
+<th style="text-align: right;">Fold 1</th>
+<th style="text-align: right;">Fold 2</th>
+<th style="text-align: right;">Fold 3</th>
+<th style="text-align: right;">Mittel ± Std.</th>
+<th style="text-align: right;">Gepoolt OOF</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>merged</strong></td>
+<td style="text-align: right;"><strong>0,840</strong></td>
+<td style="text-align: right;"><strong>0,786</strong></td>
+<td style="text-align: right;"><strong>0,768</strong></td>
+<td style="text-align: right;"><strong>0,798 ± 0,037</strong></td>
+<td style="text-align: right;"><strong>0,789</strong></td>
+</tr>
+<tr>
+<td>os0</td>
+<td style="text-align: right;">0,793</td>
+<td style="text-align: right;">0,781</td>
+<td style="text-align: right;">0,757</td>
+<td style="text-align: right;">0,777 ± 0,018</td>
+<td style="text-align: right;">0,759</td>
+</tr>
+<tr>
+<td>os1</td>
+<td style="text-align: right;">0,801</td>
+<td style="text-align: right;">0,751</td>
+<td style="text-align: right;">0,759</td>
+<td style="text-align: right;">0,770 ± 0,027</td>
+<td style="text-align: right;">0,765</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>merged</code> erzielt in jedem Fold den höchsten Gesamt-mAP. Der mittlere Vorsprung
+beträgt ungefähr <code>0,021</code> gegenüber <code>os0</code> und <code>0,028</code> gegenüber <code>os1</code>. Bei nur
+drei Folds ist das kein starker Signifikanznachweis. Es ist jedoch ein
+konsistenter Hinweis darauf, dass Fusion die ausgewogenste Gesamtleistung
+liefert und in keinem Fold von einer Einzelsicht übertroffen wird.</p>
+<h3 id="62-bewegte-objekte">6.2 Bewegte Objekte</h3>
+<p>Die folgende Tabelle verwendet die labelbasierte Bewegt-/Statisch-Variante,
+die auch der Abschlusspräsentation zugrunde liegt:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ansicht</th>
+<th style="text-align: right;">Person AP30 / AP60</th>
+<th style="text-align: right;">Fahrrad AP30 / AP60</th>
+<th style="text-align: right;">Auto AP30 / AP60</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>merged</strong></td>
+<td style="text-align: right;"><strong>0,901 / 0,729</strong></td>
+<td style="text-align: right;">0,800 / <strong>0,668</strong></td>
+<td style="text-align: right;"><strong>0,891 / 0,883</strong></td>
+</tr>
+<tr>
+<td>os0</td>
+<td style="text-align: right;">0,653 / 0,370</td>
+<td style="text-align: right;"><strong>0,895</strong> / 0,378</td>
+<td style="text-align: right;">0,885 / 0,856</td>
+</tr>
+<tr>
+<td>os1</td>
+<td style="text-align: right;">0,896 / 0,426</td>
+<td style="text-align: right;">0,744 / 0,529</td>
+<td style="text-align: right;">0,832 / 0,789</td>
+</tr>
+</tbody>
+</table></div>
+<p>Die Tabelle trennt zwei Aspekte:</p>
+<ul>
+<li>Bei AP30 finden alle Ansichten alle drei bewegten Klassen grundsätzlich.</li>
+<li>Bei AP60 liegt <code>merged</code> in allen Klassen vorn. Der Fusionsvorteil zeigt sich
+  damit besonders in der räumlichen Präzision.</li>
+</ul>
+<p>Beim bewegten Auto liegen die drei Ansichten wesentlich näher zusammen als im
+früheren temporalen Split. Alle drei Ansichten erkennen das Auto gut. Die
+defensible Schlussfolgerung lautet daher nicht, dass Fusion für die
+Autoerkennung notwendig sei, sondern dass Fusion über Klassen und
+IoU-Schwellen hinweg die beste Balance bietet.</p>
+<h3 id="63-warum-ist-fahrrad-ap30-bei-os0-hoher">6.3 Warum ist Fahrrad-AP30 bei os0 höher?</h3>
+<p><code>os0</code> erreicht bei Fahrrädern einen höheren AP30, während <code>merged</code> bei AP60
+deutlich führt. Ein Teil des AP30-Unterschieds ist ein Sichtbarkeits- und
+Label-Effekt. Die Ansichten enthalten nicht dieselbe Fahrrad-GT-Menge.</p>
+<p>Besonders deutlich ist Experiment 5:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ansicht</th>
+<th style="text-align: right;">Fahrrad-GT</th>
+<th style="text-align: right;">AP30</th>
+<th style="text-align: right;">AP60</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>merged</td>
+<td style="text-align: right;">310</td>
+<td style="text-align: right;">0,727</td>
+<td style="text-align: right;"><strong>0,611</strong></td>
+</tr>
+<tr>
+<td>os0</td>
+<td style="text-align: right;">244</td>
+<td style="text-align: right;"><strong>0,907</strong></td>
+<td style="text-align: right;">0,425</td>
+</tr>
+</tbody>
+</table></div>
+<p>In den Rohannotationen liegen die zusätzlichen <code>merged</code>-Fahrradframes
+gegenüber <code>os0</code> überwiegend weiter entfernt. <code>os0</code> wird damit teilweise nur
+auf dem kürzeren, gut sichtbaren Trajektorienabschnitt bewertet. Eine
+objektweise vollständig faire Aussage darüber, ob <code>merged</code> dieselben
+Fahrräder schlechter findet, würde eine zusätzliche Auswertung auf einer
+gemeinsamen Referenz-GT-Menge erfordern.</p>
+<p>Unabhängig davon zeigt AP60, dass die von <code>merged</code> gefundenen Fahrräder
+räumlich wesentlich genauer lokalisiert werden. Die kurze Interpretation
+lautet daher: <code>os0</code> besitzt in seiner eigenen Labelmenge die vollständigere
+Groberkennung, die Fusion liefert die präziseren Boxen.</p>
+<h3 id="64-offizielle-dynamische-auswertung-und-ap60-artefakt">6.4 Offizielle dynamische Auswertung und AP60-Artefakt</h3>
+<p>In der offiziellen dynamischen Auswertung beträgt der Auto-AP30/AP60
+<code>0,877/0,739</code> für <code>merged</code>, <code>0,885/0,847</code> für <code>os0</code> und <code>0,831/0,783</code> für
+<code>os1</code>. Der niedrige offizielle AP60 von <code>merged</code> entsteht nicht primär durch
+eine schlechte Box auf dem bewegten Auto. Die beste merged-Box auf dem
+bewegten Auto hat im Median sogar die höchste IoU der drei Ansichten
+(<code>0,848</code>).</p>
+<p>Der Haupttreiber ist ein sensornahe geparktes Fahrzeug. Zahlreiche
+hochkonfidente merged-Vorhersagen liegen dort bei IoU <code>0,25–0,60</code>. Sie werden
+bei der offiziellen AP60-Teilbewertung nicht mehr als statische Ignore-Treffer
+erkannt und erscheinen als False Positives in der dynamischen Rangliste. Die
+labelbasierte Variante ordnet diese Vorhersagen dem statischen Objekt zu; der
+merged-Auto-AP60 steigt dadurch von <code>0,739</code> auf <code>0,883</code>.</p>
+<h3 id="65-vergleich-zu-centerpoint">6.5 Vergleich zu CenterPoint</h3>
+<p>CenterPoint bestätigt das qualitative View-Ranking: <code>merged</code> ist auch dort in
+jedem Fold die beste Ansicht. Gleichzeitig liegt CenterPoint im Gesamt-mAP
+unter PointPillars. Unter der labelbasierten dynamischen Auswertung ist die
+AP60-Lücke besonders bei Fahrrädern sichtbar. Der Fusionsbefund hängt somit
+nicht ausschließlich an der anchorbasierten PointPillars-Architektur; die
+höhere absolute Leistung in diesem Projekt liefert jedoch PointPillars.</p>
+<h2 id="7-qualitative-fehleranalyse">7. Qualitative Fehleranalyse</h2>
+<h3 id="71-definition-der-geisterboxen">7.1 Definition der Geisterboxen</h3>
+<p>Für die generalisierte OOF-Analyse wird eine Geisterbox als Vorhersage mit
+Score mindestens <code>0,3</code> definiert, die sich keiner noch unbenutzten GT-Box
+derselben Klasse bei 3D-IoU mindestens <code>0,3</code> zuordnen lässt. Diese Definition
+umfasst nicht nur leere Halluzinationen, sondern auch Duplikate, falsch
+klassifizierte reale Strukturen und schlecht lokalisierte Boxen.</p>
+<p>Auf den <code>2.122</code> gemeinsamen Testframes ergeben sich:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ansicht</th>
+<th style="text-align: right;">Person</th>
+<th style="text-align: right;">Fahrrad</th>
+<th style="text-align: right;">Auto</th>
+<th style="text-align: right;">Gesamt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>merged</td>
+<td style="text-align: right;">510</td>
+<td style="text-align: right;">315</td>
+<td style="text-align: right;">159</td>
+<td style="text-align: right;">984</td>
+</tr>
+<tr>
+<td>os0</td>
+<td style="text-align: right;">948</td>
+<td style="text-align: right;">157</td>
+<td style="text-align: right;">415</td>
+<td style="text-align: right;">1.520</td>
+</tr>
+<tr>
+<td>os1</td>
+<td style="text-align: right;">329</td>
+<td style="text-align: right;">372</td>
+<td style="text-align: right;">248</td>
+<td style="text-align: right;">949</td>
+</tr>
+</tbody>
+</table></div>
+<p>Die Fehler sind nicht auf Fahrräder beschränkt. <code>os0</code> erzeugt beispielsweise
+deutlich mehr Person-Geisterboxen, während <code>merged</code> mehr Fahrrad-Geisterboxen
+als <code>os0</code> enthält.</p>
+<h3 id="72-plausible-ursachen">7.2 Plausible Ursachen</h3>
+<p>Die detaillierte Fahrradforensik zeigt drei wiederkehrende Gruppen:</p>
+<ol>
+<li>Reale statische oder nicht gelabelte Strukturen werden als Fahrrad
+   interpretiert.</li>
+<li>Sparse Reflexions- und Unterbodenpunkte können lokale Aktivierungen
+   auslösen.</li>
+<li>Vorhersagen treten wiederholt an Positionen auf, an denen Fahrräder in den
+   Trainingsaufnahmen vorkamen. Dies deutet auf eine ortsgebundene
+   Szenenmemorierung hin.</li>
+</ol>
+<p>Ein Unterbodenfilter reduzierte die Geisterboxen in einer Ablation nicht. Die
+Spiegelungshypothese ist daher nicht der dominante Mechanismus.</p>
+<p>Teilweise ragen Fahrrad- oder Personenboxen in die Ground-Truth-Box eines
+Autos. Das ist als klassenübergreifende Mehrfachhypothese plausibel: Dünn
+abgetastete Fahrzeugkanten oder das Heck können gleichzeitig einen
+fahrradähnlichen Anchor aktivieren. Die standardmäßige Non-Maximum Suppression
+arbeitet klassenweise. Eine korrekte Autobox unterdrückt deshalb keine
+zusätzliche Fahrradbox. Da die Zusatzbox keine Fahrrad-GT trifft, zählt sie in
+der Fahrradwertung als False Positive, auch wenn sie ein Auto überlappt.</p>
+<p>Eine getestete Cross-Class-NMS entfernte vollständig enthaltene
+klassenübergreifende Zusatzboxen und veränderte die Metriken nicht. Sie ist als
+Ausgabebereinigung vertretbar, sollte aber nicht nachträglich anhand der
+Cross-Validation-Testdaten optimiert werden.</p>
+<h3 id="73-praktische-gegenmanahmen">7.3 Praktische Gegenmaßnahmen</h3>
+<p>Für eine spätere Anwendung bieten sich folgende Maßnahmen an:</p>
+<ul>
+<li>pro Klasse auf Validierungsdaten gewählte Konfidenzschwellen,</li>
+<li>zeitliche Trackbestätigung statt Entscheidungen aus einzelnen Frames,</li>
+<li>Hintergrundunterstützung oder eine statische Szenenkarte,</li>
+<li>Cross-Class-NMS als konservative Ausgabebereinigung,</li>
+<li>zusätzliche Trainingsszenen zur Verringerung der Ortsmemorierung.</li>
+</ul>
+<h2 id="8-laufzeit">8. Laufzeit</h2>
+<h3 id="81-modellinferenz">8.1 Modellinferenz</h3>
+<p>Die Laufzeiten wurden mit Batchgröße 1 auf einer Tesla V100-SXM3-32GB
+gemessen. Die Messung umfasst die Modellpipeline einschließlich
+Datenverarbeitung und Voxelisierung auf bereits vorbereiteten
+Ansichtsdaten.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ansicht</th>
+<th style="text-align: right;">Durchsatz</th>
+<th style="text-align: right;">Zeit pro Frame</th>
+<th style="text-align: right;">Typische Punktzahl</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>merged</td>
+<td style="text-align: right;">11,7 fps</td>
+<td style="text-align: right;">85 ms</td>
+<td style="text-align: right;">ca. 210.000</td>
+</tr>
+<tr>
+<td>os0</td>
+<td style="text-align: right;">22,3 fps</td>
+<td style="text-align: right;">45 ms</td>
+<td style="text-align: right;">ca. 105.000</td>
+</tr>
+<tr>
+<td>os1</td>
+<td style="text-align: right;">23,5 fps</td>
+<td style="text-align: right;">43 ms</td>
+<td style="text-align: right;">ca. 105.000</td>
+</tr>
+</tbody>
+</table></div>
+<p>Bei einer Sensorfrequenz von <code>10 Hz</code> steht pro Frame ein Budget von <code>100 ms</code>
+zur Verfügung. Die Modellinferenz auf der bereits fusionierten Punktwolke
+bleibt mit <code>85 ms</code> darunter. Daraus folgt aber nur, dass die Modellinferenz
+10-Hz-fähig ist.</p>
+<h3 id="82-merge-zeit-und-ende-zu-ende-einordnung">8.2 Merge-Zeit und Ende-zu-Ende-Einordnung</h3>
+<p>Die vorhandene Offline-Merge-Pipeline wurde auf einer lokalen CPU mit acht
+parallelen Workern gemessen. Über <code>3.327</code> Frames beträgt die mediane
+Bearbeitungszeit <code>2,25 s</code> pro Frame, der Mittelwert <code>2,20 s</code>. Enthalten sind
+PCD-Laden, statistischer Filter, feste Vorabtransformation, Downsampling,
+Normalenschätzung und per-Frame-ICP.</p>
+<p>Würde diese Pipeline unverändert seriell vor der Inferenz ausgeführt, läge die
+Ende-zu-Ende-Latenz grob bei:</p>
+<pre><code class="language-text">2,25 s Merge + 0,085 s Inferenz ≈ 2,34 s pro Frame
+</code></pre>
+<p>Das wäre nicht echtzeitfähig. Bei fest installierten Sensoren kann die
+Extrinsik jedoch einmalig offline bestimmt werden. Online wären dann nur
+Zeitsynchronisation, feste Transformation und Konkatenation erforderlich.
+Dieser optimierte Pfad wurde bislang nicht implementiert und gemessen.</p>
+<p>Nach der merged-Inferenz verbleiben in einer seriellen 10-Hz-Pipeline nur
+ungefähr <code>15 ms</code> für Merge und sonstigen Overhead. Eine parallele CPU-/GPU-
+Pipeline könnte den Durchsatz verbessern, die Ende-zu-Ende-Latenz muss dennoch
+separat erfasst werden. Die korrekte Aussage ist deshalb:</p>
+<blockquote>
+<p>Die Modellinferenz auf bereits fusionierten Daten ist 10-Hz-fähig; die
+Echtzeitfähigkeit des vollständigen Online-Fusionssystems ist noch nicht
+nachgewiesen.</p>
+</blockquote>
+<h2 id="9-gultigkeit-und-grenzen">9. Gültigkeit und Grenzen</h2>
+<h3 id="91-interne-gultigkeit">9.1 Interne Gültigkeit</h3>
+<p>Für die Cross-Validation wurden folgende Schutzmaßnahmen umgesetzt:</p>
+<ul>
+<li>vollständige Testexperimente sind von Training und Checkpoint-Auswahl
+  ausgeschlossen,</li>
+<li>Train-, Validierungs- und Testframes sind disjunkt,</li>
+<li>GT-Sampling-Datenbanken enthalten ausschließlich Trainingsobjekte,</li>
+<li>ein zeitlicher Guard trennt Training und Validierung,</li>
+<li>der Zufallsseed ist fixiert,</li>
+<li>alle Ansichten verwenden dieselben gültigen physischen Zeitstempel,</li>
+<li>die offiziellen Fold-mAP-Werte wurden aus den Prediction-Dateien mit einer
+  maximalen Abweichung von <code>2,22e-16</code> reproduziert.</li>
+</ul>
+<h3 id="92-einschrankungen-der-aussagekraft">9.2 Einschränkungen der Aussagekraft</h3>
+<p>Die Ergebnisse besitzen folgende Grenzen:</p>
+<ol>
+<li>Alle neun Experimente stammen aus derselben Tiefgaragenszene. Die
+   Cross-Validation misst Generalisierung auf ungesehene Aufnahmen und
+   Trajektorien in dieser Szene, nicht auf neue Orte.</li>
+<li>Viele statische Fahrzeuge erscheinen in mehreren Folds an denselben
+   Positionen. All-Object-Werte enthalten deshalb einen Anteil
+   Szenenwiedererkennung.</li>
+<li>Die Zahl physisch verschiedener Zielobjekte und Personen ist klein.</li>
+<li>Person- und Fahrradlabels sind zwischen Ansichten nicht vollständig
+   objektweise gepaart.</li>
+<li>Drei Folds erlauben nur eine vorsichtige Interpretation der Streuung und
+   keine starke Signifikanzbehauptung.</li>
+<li>Gepoolte OOF-AP kombiniert Scores verschiedener Foldmodelle, die
+   unterschiedlich kalibriert sein können.</li>
+<li>Die Live-Laufzeit des optimierten Online-Merges wurde noch nicht gemessen.</li>
+</ol>
+<h2 id="10-schlussfolgerung">10. Schlussfolgerung</h2>
+<p>Das Projekt zeigt, dass ein auf KITTI vortrainiertes 3D-Detektionsmodell durch
+Finetuning erfolgreich auf eine fest installierte Tiefgaragenszene angepasst
+werden kann. PointPillars liefert mit der fusionierten Punktwolke in jedem
+Cross-Validation-Fold den höchsten Gesamt-mAP. Der Fusionsvorteil ist moderat,
+aber konsistent und zeigt sich besonders in der präzisen Lokalisierung
+bewegter Personen und Fahrräder.</p>
+<p>Die Fusion ist dagegen nicht notwendig, um das bewegte Auto grundsätzlich zu
+erkennen. Alle drei Ansichten erreichen auf vollständig ungesehenen
+Autoaufnahmen eine hohe AP30; <code>os0</code> ist leicht am besten. Der frühere starke
+<code>os1</code>-Einbruch war ein Artefakt der zeitlich und räumlich gekoppelten
+Testaufteilung. Dieses Ergebnis unterstreicht, wie stark wissenschaftliche
+Schlussfolgerungen von einem passenden Evaluationsdesign abhängen.</p>
+<p>Die aussagekräftigste Gesamtformulierung lautet:</p>
+<blockquote>
+<p>Die Multisensorfusion liefert die beste ausgewogene Gesamtleistung und die
+präziseste Lokalisierung, ist aber nicht in jeder Klasse und bei jeder
+Metrik die beste Einzelansicht.</p>
+</blockquote>
+<p>Für einen späteren Einsatz sind vor allem ein finaler Refit des ausgewählten
+Modells, ein gemessener Online-Merge, validierungsbasierte Betriebsschwellen
+und zeitliches Tracking erforderlich.</p>
+<h2 id="11-reproduzierbarkeit-und-projektartefakte">11. Reproduzierbarkeit und Projektartefakte</h2>
+<h3 id="111-zentrale-implementierungen">11.1 Zentrale Implementierungen</h3>
+<ul>
+<li>Cross-Validation-Splits:
+  <code>mmdetection3d/tools/dataset_converters/create_exp_crossval_splits.py</code></li>
+<li>PointPillars-CV-Konfiguration:
+  <code>mmdetection3d/configs/pointpillars/pointpillars_hv_secfpn_8xb6-50e_exp-crossval-gtsample.py</code></li>
+<li>Trainingssteuerung: <code>mmdetection3d/tools/run_exp_crossval.sh</code></li>
+<li>Cross-Validation-Auswertung:
+  <code>mmdetection3d/tools/analysis_tools/exp_eval_crossval.py</code></li>
+<li>Geisterboxanalyse:
+  <code>mmdetection3d/tools/analysis_tools/exp_ghost_boxes_crossval.py</code></li>
+<li>Punktwolken-Merge: <code>experiment/pcd_merge.py</code></li>
+<li>Label-Editor: <code>experiment/manual_bbox_editor.py</code></li>
+</ul>
+<h3 id="112-primare-ergebnisquellen">11.2 Primäre Ergebnisquellen</h3>
+<ul>
+<li><code>results/CROSS_VALIDATION.md</code>: eingefrorenes Evaluationsprotokoll</li>
+<li><code>results/CROSS_VALIDATION_RESULTS.md</code>: offizielle PointPillars-Ergebnisse</li>
+<li><code>results/CROSS_VALIDATION_STATIC_AWARE.md</code>: labelbasierte Teilbewertung</li>
+<li><code>results/CENTERPOINT_CV_STATIC_AWARE.md</code>: CenterPoint-Vergleich</li>
+<li><code>results/GHOST_BOXES.json</code>: generalisierte OOF-Fehlerzählung</li>
+<li><code>results/DATA_AUDIT.md</code>: Daten-, Metrik- und Ursachenanalyse</li>
+<li><code>results/ABLATION_BICYCLE.md</code>: frühere kontrollierte Ablationen</li>
+</ul>
+<h3 id="113-prasentationsmaterial">11.3 Präsentationsmaterial</h3>
+<p>Das primäre qualitative Video ist
+<code>results/videos/exp1_cv_full_three_views_oblique.mp4</code>. Es zeigt alle <code>105</code>
+gemeinsamen gültigen Frames von Experiment 1 mit den drei Fold-1-Modellen, für
+die das vollständige Experiment während Training und Checkpoint-Auswahl
+ungesehen war.</p>
+<p>Ältere Videos des temporalen 11-Frame-Testsegments sind nur historische
+Artefakte. Sie dürfen nicht als Beleg dafür verwendet werden, dass <code>os1</code> das
+bewegte Auto generell nicht erkennen könne.</p>
+<h2 id="12-offene-arbeiten">12. Offene Arbeiten</h2>
+<p>Für die nächste Überarbeitung beziehungsweise einen späteren Deployment-Stand
+sind folgende Punkte offen:</p>
+<ul>
+<li>wissenschaftliche Quellen und Literaturverweise ergänzen,</li>
+<li>Abbildungen und Tabellen nummerieren und im Text referenzieren,</li>
+<li>gemeinsame Fahrrad-GT-Auswertung für einen streng objektweise gepaarten
+  View-Vergleich durchführen,</li>
+<li>Fehler nach kontinuierlicher Position, Distanz und Punktunterstützung
+  aufschlüsseln,</li>
+<li>finalen Refit für die ausgewählte Ansicht und eine vorab festgelegte
+  Trainingsdauer auf allen gültigen Daten trainieren,</li>
+<li>Online-Merge mit fester Extrinsik implementieren und Ende-zu-Ende-Latenz
+  messen,</li>
+<li>Betriebsschwellen ausschließlich aus Validierungsfolds bestimmen,</li>
+<li>Tracking und Hintergrundmodell als separate, klar benannte Erweiterungen
+  evaluieren.</li>
+</ul>
+<p>Ein finaler Refit ist nicht mit einem neuen unabhängigen Testergebnis zu
+verwechseln. Die Cross-Validation bleibt die wissenschaftliche
+Leistungsschätzung; der Refit wäre das spätere Inferenzartefakt.</p>
+    <p class="source-note">Automatisch erzeugt aus <code>DOKUMENTATION_ENTWURF.md</code>.
+      Maßgebliche Ergebnisquellen sind die im Abschnitt „Reproduzierbarkeit und
+      Projektartefakte“ aufgeführten Cross-Validation-Reports.</p>
+  </main>
+</body>
+</html>

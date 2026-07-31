@@ -6,7 +6,11 @@ Alle Endergebnisse des Projekts an einem Ort.
 
 | Datei | Inhalt |
 |---|---|
-| [`RESULTS.md`](RESULTS.md) | **Haupt-Ergebnisreport**: per-Klasse AP30/40/50/60 aller 8 Läufe, View-Vergleich (merged/os0/os1), dynamisch/statisch-Analyse, Laufzeiten, Vergleich mit der Vorgängerarbeit, qualitative Analyse |
+| [`RESULTS.md`](RESULTS.md) | Historischer Temporal-Split-Report: per-Klasse AP30/40/50/60, Ablationen, Laufzeiten und qualitative Analyse; als Hauptbewertung durch Cross-Validation abgelöst |
+| [`CROSS_VALIDATION_RESULTS.md`](CROSS_VALIDATION_RESULTS.md) | **Aktueller Haupt-Ergebnisreport**: gepaarte experiment-held-out 3-Fold-Cross-Validation, Fold-Streuung, gepoolte OOF-Metriken, dynamisch/statisch und OOF-False-Positives |
+| [`CROSS_VALIDATION.md`](CROSS_VALIDATION.md) | Vorab festgelegtes Cross-Validation-Protokoll, Trainingsdetails und wissenschaftliche Einordnung |
+| [`CROSS_VALIDATION_STATIC_AWARE.md`](CROSS_VALIDATION_STATIC_AWARE.md) | Benannte Auswertungsvariante: Bewegt-/Statisch-Wertung nutzt die manuellen Labels (Ignore-Floor 0.25) — Grundlage der Bewegt-Folien der Abschlusspräsentation |
+| [`CENTERPOINT_CV_STATIC_AWARE.md`](CENTERPOINT_CV_STATIC_AWARE.md) | Dieselbe label-basierte Auswertungsvariante für den CenterPoint-Vergleichslauf |
 | [`DATA_AUDIT.md`](DATA_AUDIT.md) | Technisches Audit der Datenpipeline: Geometrie-Fixes (Daten v2), Metrik-Korrektur (datensatzweites AP11), Ursachenanalysen (dyn. car, Geisterräder) |
 | [`ABLATION_BICYCLE.md`](ABLATION_BICYCLE.md) | Klassenimbalance-Ablationen: GT-Sampling (übernommen) vs. Oversampling und Unterboden-Filter (verworfen) |
 
