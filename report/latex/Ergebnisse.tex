@@ -8,7 +8,7 @@ Die erste Forschungsfrage betrifft den Nutzen des Finetunings gegenüber einem u
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.9\textwidth]{images/finetuning-baseline.png}
-\caption{Gesamt-mAP auf der fusionierten Ansicht: Finetuning in dieser Arbeit gegenüber ausschließlich vortrainierten Modellen. Die Vergleichswerte stammen aus \cite{pagel2025railway} und wurden auf denselben Tiefgaragenaufnahmen erhoben, aus denen auch Abbildung~\ref{fig:setup} übernommen ist; der Titel jener Arbeit verweist auf einen weiteren, hier nicht betrachteten Anwendungsfall.}
+\caption[Finetuning gegenüber vortrainierten Modellen]{Gesamt-mAP auf der fusionierten Ansicht: Finetuning in dieser Arbeit gegenüber ausschließlich vortrainierten Modellen. Die Vergleichswerte stammen aus \cite{pagel2025railway} und wurden auf denselben Tiefgaragenaufnahmen erhoben, aus denen auch Abbildung~\ref{fig:setup} übernommen ist; der Titel jener Arbeit verweist auf einen weiteren, hier nicht betrachteten Anwendungsfall.}
 \label{fig:finetuning-baseline}
 \end{figure}
 
@@ -46,7 +46,7 @@ Beschränkt man den mAP auf die bewegten Zielobjekte, vergrößert sich der Abst
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.9\textwidth]{images/map-bewegte-objekte.png}
-\caption{mAP über AP\textsubscript{30} bis AP\textsubscript{60} und die drei Klassen, ausschließlich für bewegte Objekte (gepoolte Out-of-Fold-Vorhersagen, labelbasierte Bewegt-/Statisch-Variante).}
+\caption[mAP der bewegten Objekte je Ansicht]{mAP über AP\textsubscript{30} bis AP\textsubscript{60} und die drei Klassen, ausschließlich für bewegte Objekte (gepoolte Out-of-Fold-Vorhersagen, labelbasierte Bewegt-/Statisch-Variante).}
 \label{fig:map-bewegt}
 \end{figure}
 
@@ -95,7 +95,7 @@ os1    & 0{,}896 / 0{,}426 & 0{,}744 / 0{,}529 & 0{,}832 / 0{,}789 \\
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{images/ap30-ap60-klassen.png}
-\caption{Detektion (AP\textsubscript{30}, offene Ringe) gegenüber präziser Lokalisierung (AP\textsubscript{60}, gefüllte Punkte) je Klasse und Ansicht. Der Abstand zwischen Ring und Punkt visualisiert den AP-Rückgang beim Übergang zur strengeren IoU-Schwelle und damit die Empfindlichkeit gegenüber höheren Lokalisierungsanforderungen. Er ist kein Anteil einzelner Objekte, da die AP über die gesamte Precision-Recall-Kurve gebildet wird.}
+\caption[Detektion gegenüber Lokalisierung je Klasse]{Detektion (AP\textsubscript{30}, offene Ringe) gegenüber präziser Lokalisierung (AP\textsubscript{60}, gefüllte Punkte) je Klasse und Ansicht. Der Abstand zwischen Ring und Punkt visualisiert den AP-Rückgang beim Übergang zur strengeren IoU-Schwelle und damit die Empfindlichkeit gegenüber höheren Lokalisierungsanforderungen. Er ist kein Anteil einzelner Objekte, da die AP über die gesamte Precision-Recall-Kurve gebildet wird.}
 \label{fig:ap30-ap60}
 \end{figure}
 
@@ -176,7 +176,7 @@ Die bisherigen Werte fassen über Experimente hinweg zusammen. Abbildung~\ref{fi
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{images/ap30-je-experiment.png}
-\caption{AP\textsubscript{30} der bewegten Zielklasse je ungesehenem Testexperiment und Ansicht. Jede Spalte wurde von demjenigen Foldmodell vorhergesagt, für das dieses Experiment vollständig ungesehen war.}
+\caption[AP\textsubscript{30} je ungesehenem Testexperiment]{AP\textsubscript{30} der bewegten Zielklasse je ungesehenem Testexperiment und Ansicht. Jede Spalte wurde von demjenigen Foldmodell vorhergesagt, für das dieses Experiment vollständig ungesehen war.}
 \label{fig:ap30-je-experiment}
 \end{figure}
 
@@ -231,7 +231,7 @@ Der in Abschnitt~\ref{sec:evalprotokoll} beschriebene Vergleich mit CenterPoint 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.9\textwidth]{images/pointpillars-vs-centerpoint.png}
-\caption{Gesamt-mAP im Fold-Mittel: PointPillars gegenüber CenterPoint unter identischem Cross-Validation-Protokoll.}
+\caption[PointPillars gegenüber CenterPoint]{Gesamt-mAP im Fold-Mittel: PointPillars gegenüber CenterPoint unter identischem Cross-Validation-Protokoll.}
 \label{fig:pp-vs-cp}
 \end{figure}
 

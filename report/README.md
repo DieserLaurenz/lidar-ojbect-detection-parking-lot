@@ -4,7 +4,7 @@ Die beiden finalen Dokumente des Projekts.
 
 | Datei | Inhalt |
 |---|---|
-| `Projektbericht.pdf` | Projektbericht, 37 Seiten, A4 — die gebaute Fassung der Quellen in `latex/` |
+| `Projektbericht.pdf` | Projektbericht, 38 Seiten, A4 — die gebaute Fassung der Quellen in `latex/` |
 | `Abschlusspraesentation-DCAITI-LiDAR-Projekt.pptx` | Abschlusspräsentation, 22 Folien inkl. Backup-Folie zur Daten- und Messqualität |
 | `latex/` | LaTeX-Quellen des Berichts |
 
