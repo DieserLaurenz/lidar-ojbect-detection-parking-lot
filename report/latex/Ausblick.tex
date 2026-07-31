@@ -1,0 +1,29 @@
+\section{Ausblick}
+
+Die vorgelegte Arbeit zeigt, dass Multisensorfusion die beste ausgewogene Gesamtleistung für die 3D-Objekterkennung in einer stationären Tiefgaragenszene liefert. Auf dem Weg von dieser wissenschaftlichen Bewertung zu einem einsatzfähigen und besser generalisierenden System verbleiben mehrere Anschlussarbeiten, die im Folgenden umrissen werden.
+
+\subsection{Finales Einsatzmodell}
+
+Die Cross-Validation liefert mit dem Fold-Mittel von \(0{,}798 \pm 0{,}037\) für \texttt{merged} die wissenschaftliche Leistungsschätzung. Ein späterer produktiver Einsatz erfordert jedoch ein einzelnes finales Modell, das nicht auf zwei Dritteln der Daten trainiert wurde, sondern alle gültigen Aufnahmen nutzt. Der nächste logische Schritt ist daher ein Refit der gewählten Ansicht -- voraussichtlich \texttt{merged} -- auf sämtlichen validen Frames mit einer vorab festgelegten, der Cross-Validation entsprechenden Trainingsdauer.
+
+Dieser finale Refit ist ausdrücklich nicht als neues unabhängiges Testergebnis zu verstehen. Die Cross-Validation bleibt die Leistungsschätzung; der Refit ist das spätere Inferenzartefakt. Die Trennung zwischen wissenschaftlicher Bewertung und produktivem Modelltraining ist eine bewährte Praxis und verhindert, dass das Testprotokoll nachträglich durch Kenntnis der Testergebnisse beeinflusst wird.
+
+\subsection{Online-Merge und Echtzeitvalidierung}
+
+Die aktuell gemessenen 85\,ms Inferenzzeit auf der fusionierten Punktwolke belegen die 10-Hz-Fähigkeit der Modellinferenz. Der vorgelagerte Merge-Schritt wurde jedoch bislang nur als Offline-Pipeline mit einer medianen Bearbeitungszeit von 2{,}25\,s pro Frame realisiert -- dominiert durch die per-Frame-ICP, die bei fest montierten Sensoren nicht erforderlich ist.
+
+Für ein Live-System muss die Extrinsik einmalig auf einer geeigneten statischen Kalibrierszene bestimmt werden. Online verbleiben dann lediglich Zeitsynchronisation, feste Transformation und Konkatenation. Erst nach der Implementierung dieses optimierten Pfads kann eine belastbare Ende-zu-Ende-Latenzmessung durchgeführt werden. Bei einem 10-Hz-Sensortakt verbleiben nach der \texttt{merged}-Inferenz nur ungefähr 15\,ms für Merge und Overhead -- ob dieses Budget ausreicht, ist eine der zentralen offenen Fragen für den Produktivbetrieb.
+
+\subsection{Tracking und zeitliche Filterung}
+
+Die aktuelle Pipeline trifft Detektionsentscheidungen frameweise. Viele der in der Fehleranalyse dokumentierten Geisterboxen -- insbesondere kurzzeitig auftretende False Positives -- ließen sich durch zeitliche Konsistenz über mehrere Frames hinweg unterdrücken. Ein kalmanfilterbasiertes Tracking könnte Objekte über die Zeit verbinden, kurzlebige Einzelframe-Detektionen verwerfen und die verbleibenden Boxen räumlich glätten.
+
+Darüber hinaus bietet das Tracking die Grundlage für Geschwindigkeitsschätzung und Trajektorienprädiktion -- beides relevante Größen für eine spätere verkehrstechnische Anwendung.
+
+\subsection{Erweiterung der Datenbasis}
+
+Die in Abschnitt~\ref{sec:gueltigkeit} genannte Beschränkung auf eine einzige Szene ist die gewichtigste Grenze dieser Arbeit. Die dokumentierte Ortsmemorierung in der Fehleranalyse zeigt, dass das Modell einen Teil seiner Leistung aus wiedererkannten Positionen zieht.
+
+Ein belastbarer Generalisierungsnachweis erfordert die Aufnahme und Annotation weiterer Szenen -- im Idealfall an mehreren Standorten mit unterschiedlichen Raumabmessungen, Parkdichten und Untergründen. Nur so lässt sich bestimmen, ob das vortrainierte und finetunete Modell die zugrundeliegenden Formcharakteristiken der drei Zielklassen erfasst hat oder überwiegend szenenspezifische Muster memorierte. Die statischen Fahrzeuge, die in den aktuellen Daten an festen Positionen stehen, unterstreichen diese Notwendigkeit zusätzlich.
+
+Die vorliegende Arbeit liefert mit der experiment-held-out Cross-Validation, der fusionierten Sicht und der dokumentierten Evaluationspipeline die methodische Grundlage, auf der diese Schritte aufbauen können.

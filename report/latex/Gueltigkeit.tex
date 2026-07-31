@@ -1,0 +1,34 @@
+\section{Gültigkeit und Grenzen}
+\label{sec:gueltigkeit}
+
+\subsection{Interne Gültigkeit}
+
+Für die Cross-Validation wurden folgende Schutzmaßnahmen umgesetzt:
+
+\begin{itemize}
+    \item vollständige Testexperimente sind von Training und Checkpoint-Auswahl ausgeschlossen,
+    \item Train-, Validierungs- und Testframes sind disjunkt,
+    \item GT-Sampling-Datenbanken enthalten ausschließlich Trainingsobjekte,
+    \item ein zeitlicher Guard trennt Training und Validierung,
+    \item der Zufallsseed ist fixiert,
+    \item alle Ansichten verwenden dieselben gültigen physischen Zeitstempel,
+    \item die offiziellen Fold-mAP-Werte wurden aus den Prediction-Dateien mit einer maximalen Abweichung von \(2{,}22 \times 10^{-16}\) reproduziert.
+\end{itemize}
+
+\subsection{Einschränkungen der Aussagekraft}
+
+Die Ergebnisse besitzen folgende Grenzen:
+
+\begin{enumerate}
+    \item Alle neun Experimente stammen aus derselben Tiefgaragenszene. Die Cross-Validation misst Generalisierung auf ungesehene Aufnahmen und Trajektorien in dieser Szene, nicht auf neue Orte.
+    \item Viele statische Fahrzeuge erscheinen in mehreren Folds an denselben Positionen. All-Object-Werte enthalten deshalb einen Anteil Szenenwiedererkennung.
+    \item Die Zahl physisch verschiedener Zielobjekte und Personen ist klein.
+    \item Person- und Fahrradlabels sind zwischen Ansichten nicht vollständig objektweise gepaart.
+    \item Drei Folds erlauben nur eine vorsichtige Interpretation der Streuung und keine starke Signifikanzbehauptung.
+    \item Je Fold und Ansicht wurde genau ein Trainingslauf mit dem festen Seed 42 durchgeführt. Die angegebene Standardabweichung erfasst deshalb ausschließlich die Streuung zwischen den Folds, nicht die zwischen verschiedenen Initialisierungen. Da der Fusionsvorsprung im Gesamt-mAP mit 0{,}021 kleiner ist als die Fold-Streuung von \texttt{merged} mit 0{,}037, wäre eine Wiederholung mit mehreren Seeds für eine belastbare Signifikanzaussage erforderlich.
+    \item Gepoolte OOF-AP kombiniert Scores verschiedener Foldmodelle, die unterschiedlich kalibriert sein können. Die maßgeblichen Aussagen des Ergebniskapitels stützen sich deshalb auf Fold-Mittel; gepoolte Werte werden ergänzend berichtet.
+    \item Experimentweise und gepoolte Auswertung beantworten verschiedene Fragen. Die experimentweise Auswertung berücksichtigt nur Frames, in denen die Zielklasse bewegt vorkommt, und übersieht Fehldetektionen außerhalb dieser Frames (Abschnitt~\ref{sec:os0-person}). Sie ist deshalb kein Ersatz für die Auswertung über die gesamte Testmenge.
+    \item Die labelbasierte Bewegt-/Statisch-Variante wurde erst nach Sichtung des AP\textsubscript{60}-Artefakts definiert und wirkt zugunsten der fusionierten Ansicht. Sie ist deshalb kein vorab eingefrorener Bestandteil des Protokolls. Alle zentralen Aussagen werden daher zusätzlich unter der offiziellen Variante berichtet und bleiben dort bestehen.
+    \item Der Vergleich zwischen finetunetem und ausschließlich vortrainiertem Modell in Abschnitt~\ref{sec:finetuning-wirkung} stützt sich auf Vergleichswerte aus \cite{pagel2025railway}. Diese wurden auf denselben Aufnahmen, aber nicht unter dem hier verwendeten Cross-Validation-Protokoll erhoben. Er ist deshalb als Größenordnungsvergleich zu lesen und nicht als kontrollierte Ablation.
+    \item Die Live-Laufzeit des optimierten Online-Merges wurde noch nicht gemessen.
+\end{enumerate}

@@ -1,0 +1,16 @@
+\section{Aufgabenstellung und Forschungsfragen}
+
+Die Ausgangssituation ist eine fest installierte Verkehrsszene in einer Tiefgarage, die gleichzeitig von zwei LiDAR-Sensoren aus unterschiedlichen Perspektiven erfasst wird. Das Projekt soll ein vortrainiertes 3D-Objekterkennungsmodell auf diese Zielszene anpassen und den Nutzen der Multisensorfusion quantifizieren.
+
+Aus der Aufgabenstellung ergeben sich vier zentrale Forschungsfragen:
+
+\begin{enumerate}
+    \item Welche Bedeutung besitzt das Finetuning auf die projektspezifischen Tiefgaragendaten gegenüber der unveränderten Übernahme eines vortrainierten Modells?
+    \item Welche Unterschiede bestehen zwischen den Einzelsensoransichten \texttt{os0} und \texttt{os1} und der fusionierten Ansicht \texttt{merged}?
+    \item Zeigt sich ein Fusionsvorteil eher beim bloßen Finden eines Objekts oder bei der räumlich präzisen Lokalisierung?
+    \item Welche typischen Fehlerbilder und praktischen Laufzeitgrenzen besitzt die entwickelte Verarbeitungskette?
+\end{enumerate}
+
+Der Fokus liegt auf drei Klassen: Person, Fahrrad und Auto. Die wissenschaftliche Hauptaussage soll nicht aus einzelnen Beispielbildern oder einem einzigen zufälligen Split abgeleitet werden, sondern aus vollständig ungesehenen Aufnahmen unter einem für alle drei Ansichten gepaarten Protokoll.
+
+Frage~1 wird in Abschnitt~\ref{sec:finetuning-wirkung} beantwortet, Frage~2 in den Abschnitten~\ref{sec:gesamtleistung} bis \ref{sec:generalisierung-experiment}, Frage~3 in Abschnitt~\ref{sec:bewegte-klassen} und Frage~4 in den Kapiteln~\ref{sec:fehleranalyse} und \ref{sec:laufzeit}. Abschnitt~\ref{sec:centerpoint-ergebnis} prüft ergänzend, ob die Antwort auf Frage~2 von der gewählten Modellarchitektur abhängt. Die Schlussfolgerung führt alle vier Antworten zusammen.

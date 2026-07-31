@@ -1,0 +1,46 @@
+\section{Anhang: Offene Arbeiten am Bericht (Referenz)}
+
+Die folgende Liste dient als projektinterne Checkliste für die noch ausstehenden Arbeiten an diesem Bericht.
+
+\begin{itemize}
+    \item[\checkmark] wissenschaftliche Quellen und Literaturverweise ergänzen,
+    \item[\checkmark] Abbildungen und Tabellen nummerieren und im Text referenzieren,
+    \item[\checkmark] Literaturverzeichnis mit allen zitierten Arbeiten vervollständigen,
+    \item[\checkmark] Sensor-Setup-Abbildung einfügen,
+    \item[\checkmark] qualitative Detektionsbeispiele einfügen (\texttt{os1} gegenüber \texttt{merged}, Standbild aus dem Video),
+    \item[\checkmark] Baselinevergleich vortrainiert gegenüber finetunet ergänzen,
+    \item[\checkmark] mAP der bewegten Objekte und experimentweises Raster ergänzen,
+    \item[\checkmark] Bewegt-mAP foldweise als Mittel \(\pm\) Standardabweichung angeben,
+    \item[\checkmark] alle zentralen Ergebnisse zusätzlich unter der offiziellen Variante berichten,
+    \item[\checkmark] AP\textsubscript{40} und AP\textsubscript{50} tabellieren,
+    \item[\checkmark] Personen-Einbruch von \texttt{os0} gegen die Foldwerte verifizieren,
+    \item[\checkmark] Trainingsparameter vervollständigen,
+    \item[\checkmark] Merge-Zeitverteilung einordnen.
+\end{itemize}
+
+\noindent Offen sind noch:
+
+\begin{itemize}
+    \item[\(\ast\)] \textbf{Sensorspezifikation OS0 und OS1 ergänzen} (Modell, Kanalzahl,
+          vertikales Sichtfeld, Reichweite, Montagehöhe). Der Bericht beschreibt an
+          mehreren Stellen Asymmetrien zwischen den Einzelsensoren, ohne eine
+          physikalische Erklärung anzubieten. Höchster verbleibender Erkenntnisgewinn.
+    \item Experimentweises Raster auch für AP\textsubscript{60} erstellen. Die Werte liegen
+          in \texttt{CROSS\_VALIDATION\_RESULTS.md} vor und würden den Fusionsvorteil
+          auch experimentweise belegen.
+    \item Angaben zur Sensorsynchronisation ergänzen (Verfahren, maximaler Zeitversatz).
+          Ein Zeitversatz wirkt bei bewegten Objekten unmittelbar auf AP\textsubscript{60}.
+    \item ICP-Parameter und Registrierungsgüte dokumentieren (Voxelgröße,
+          Korrespondenzdistanz, Abbruchkriterium, Fitness bzw.\ RMSE).
+    \item Kriterium dokumentieren, ab welcher Sichtbarkeit ein Objekt in einer Ansicht
+          annotiert wurde. Davon hängen die ansichtsspezifischen GT-Zahlen ab.
+    \item Datum der Definition der labelbasierten Bewegt-\slash Statisch-Variante nachtragen.
+    \item Datenstand der Ablationen aus Abschnitt~\ref{sec:gtsampling} und
+          \ref{sec:ursachen} klären; gegebenenfalls auf dem korrigierten Stand wiederholen.
+    \item Architekturschema von PointPillars einfügen,
+    \item Tabelle mit Frameanzahl und Instanzen je Experiment und Klasse ergänzen,
+    \item prüfen, ob eine Eigenständigkeitserklärung und eine Aufteilung der
+          Beiträge beider Teammitglieder verlangt sind.
+\end{itemize}
+
+\noindent Mit \(\ast\) markierte Punkte betreffen die Belastbarkeit von Aussagen im Ergebniskapitel.

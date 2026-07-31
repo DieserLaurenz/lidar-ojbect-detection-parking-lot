@@ -1,0 +1,52 @@
+\section{Modelle und Training}
+
+\subsection{PointPillars}
+
+PointPillars \cite{lang2019pointpillars} wandelt die unregelmäßige Punktwolke in ein Raster senkrechter Säulen, sogenannter Pillars, um. Innerhalb jedes Pillars werden die Punkte zu einem Merkmalsvektor verdichtet. Anschließend verarbeitet ein zweidimensionales Backbone die entstehende Bird's-Eye-View-Repräsentation und sagt orientierte 3D-Boxen voraus.
+
+Das Modell wird nicht von Grund auf neu trainiert. Ausgangspunkt ist ein auf KITTI \cite{geiger2012kitti} vortrainierter Drei-Klassen-Checkpoint. Dieses Vorwissen wird durch Finetuning auf die Tiefgaragenszene angepasst \cite{pan2010transfer}. Für jeden Fold und jede Ansicht wird ein eigenes Modell trainiert. Insgesamt entstehen damit neun evaluierbare PointPillars-Foldmodelle.
+
+Die wesentlichen Trainingsparameter sind in Tabelle~\ref{tab:training-params} zusammengefasst:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Festgelegter Wert} \\
+\midrule
+Initialisierung & KITTI-Drei-Klassen-Checkpoint \\
+Trainingsdauer & 50 Epochen \\
+Optimierer & AdamW, \(\beta = (0{,}95;\ 0{,}99)\), Weight Decay 0{,}01 \\
+Lernrate & \(1 \cdot 10^{-4}\), zyklischer Zeitplan \\
+Batchgröße & 6 pro GPU \\
+Punktwolkenbereich & \([0;\ 69{,}12] \times [-39{,}68;\ 39{,}68] \times [-3;\ 1]\,\text{m}\) \\
+Pillargröße & \(0{,}16 \times 0{,}16 \times 4\,\text{m}\) \\
+Zufallsseed & 42 \\
+Klassen & Person, Fahrrad, Auto \\
+Checkpoint-Auswahl & höchste Validierungs-mAP \\
+GT-Sampling & Person 8, Fahrrad 10 \\
+\bottomrule
+\end{tabular}
+\caption{Festgelegte Trainingsparameter für PointPillars. Die GT-Sampling-Werte geben an, wie viele Instanzen der jeweiligen Klasse pro Trainingsframe maximal zusätzlich eingefügt werden.}
+\label{tab:training-params}
+\end{table}
+
+Für jede Fold-/Ansichtskombination wird die GT-Sampling-Datenbasis ausschließlich aus deren Trainingsframes erzeugt. Test- und Validierungsobjekte können daher nicht durch Copy-Paste-Augmentierung in das Training gelangen.
+
+\subsection{Klassenungleichgewicht und GT-Sampling}
+\label{sec:gtsampling}
+
+In den Trainingsdaten kommen deutlich mehr Autos als Fahrräder vor; im früheren \texttt{merged}-Trainingssplit lag das Verhältnis ungefähr bei 22:1. GT-Sampling fügt zusätzliche Personen- und Fahrradinstanzen aus anderen Trainingsframes in die aktuelle Trainingsszene ein \cite{ghiasi2021copypaste}. Dadurch steigt die Variabilität der seltenen Klassen, ohne Frames aus Validierung oder Test zu verwenden.
+
+Frühere kontrollierte Ablationen zeigten, dass GT-Sampling die Fahrrad-Detektion verbessert. Einfaches Frame-Oversampling war weniger wirksam. Diese Ablationen stammen aus einer früheren Projektphase; herangezogen wird ausschließlich ihre Richtungsaussage, nicht ihr absolutes Niveau (Abschnitt~\ref{sec:konvertierung}). Ein Filter für Punkte unterhalb des Bodens reduzierte die Fehldetektionen nicht und verschlechterte andere Ergebnisse; er wurde deshalb nicht in die Standardpipeline übernommen.
+
+\subsection{Architekturvergleich mit CenterPoint}
+\label{sec:architekturvergleich}
+
+Zusätzlich wurde CenterPoint \cite{yin2021centerpoint} unter dem in Abschnitt~\ref{sec:evalprotokoll} beschriebenen Cross-Validation-Protokoll trainiert. CenterPoint ist im Gegensatz zum anchorbasierten PointPillars ein anchorfreier Detektor, der Objektzentren über eine Heatmap vorhersagt.
+
+Der Vergleich verfolgt eine einzige Frage: Hängt der Fusionsbefund an der gewählten Architektur, oder gilt er auch für einen anders aufgebauten Detektor? Er dient damit als Robustheitsprüfung der Modellwahl und ausdrücklich nicht als nachträgliche Optimierung des Testprotokolls. Beide Modelle wurden unter demselben Cross-Validation-Protokoll mit denselben Folds und denselben Ansichten trainiert und ausgewertet.
+
+Die Vorgehensweise ist für beide Architekturen identisch. Übereinstimmend sind Trainingsdauer, Zufallsseed, Klassensatz, Initialisierung aus einem auf KITTI vortrainierten Checkpoint, Augmentierung einschließlich GT-Sampling sowie die Checkpoint-Auswahl nach höchster Validierungs-mAP; es gelten also die in Tabelle~\ref{tab:training-params} festgelegten Werte. Unterschiedlich sind ausschließlich die Detektorarchitektur und die untrennbar an sie gebundenen Einstellungen, etwa der Aufbau des Detektionskopfes und die ankerbasierte gegenüber der ankerfreien Zuordnung. Diese wurden für beide Modelle aus der jeweiligen Referenzkonfiguration übernommen und nicht auf die Projektdaten abgestimmt; keines der beiden Modelle erhielt damit einen gezielten projektspezifischen Tuningvorteil.
+
+Damit ist nicht nur die Rangfolge der Ansichten innerhalb jeder Architektur vergleichbar, sondern auch der absolute Abstand zwischen den beiden Modellen ein kontrollierter Vergleich der beiden verwendeten Referenzkonfigurationen auf diesem Datensatz. Die verwendete PointPillars-Konfiguration erzielt in allen Ansichten höhere Werte und bleibt daher das Hauptmodell dieser Arbeit.

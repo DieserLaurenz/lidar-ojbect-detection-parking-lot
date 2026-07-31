@@ -17,6 +17,22 @@ __pycache__/
 *.tar.xz
 *.zip
 
+# LaTeX build artefacts (report/latex) - the built PDF is tracked, the rest is not
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+report/latex/main.pdf
+report/latex/*-blx.bib
+report/latex/*.log
+
 # Generated reports/results
 merge_times.csv
 *_inference_times_rank0.csv
